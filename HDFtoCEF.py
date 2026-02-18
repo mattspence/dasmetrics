@@ -1,4 +1,3 @@
-import pandas as pd 
 import polars as pl
 #pl.enable_string_cache ## Avoid Polars' CategoricalRemappingWarning
 import numpy as np
@@ -42,71 +41,53 @@ def calculate_stats(data):
 
 def calculate_ss(data, geography, sizecategory, characteristic):
     if len(data) > 0:
-        odf = pd.DataFrame({
-            'Geography': geography,
-            'Size_Category': sizecategory,
-            'Characteristic': characteristic,
-            'MinDiff': np.nanmin(data['Diff']),
-            'MeanDiff':np.nanmean(data['Diff']),
-            'MedianDiff':np.nanmedian(data['Diff']),
-            'MaxDiff': np.nanmax(data['Diff']),
-            'MeanAbsDiff':np.nanmean(data['AbsDiff']),
-            'MedianAbsDiff':np.nanmedian(data['AbsDiff']),
-            'AbsDiff90th': np.nanpercentile(data['AbsDiff'], 90),
-            'AbsDiff95th': np.nanpercentile(data['AbsDiff'], 95),
-            'MinPercDiff': np.nanmin(data['PercDiff']),
-            'MeanPercDiff':np.nanmean(data['PercDiff']),
-            'MedianPercDiff':np.nanmedian(data['PercDiff']),
-            'MaxPercDiff': np.nanmax(data['PercDiff']),
-            'PercDiffNAs': data['PercDiff'].is_null().sum(),
-            'MeanAbsPercDiff': np.nanmean(data['AbsPercDiff']),
-            'MedianAbsPercDiff': np.nanmedian(data['AbsPercDiff']),
-            'AbsPercDiff90th': np.nanpercentile(data['AbsPercDiff'], 90),
-            'AbsPercDiff95th': np.nanpercentile(data['AbsPercDiff'], 95),
-            'AbsPercDiffMax': np.nanmax(data['AbsPercDiff']),
-            'AbsPercDiffNAs': data['AbsPercDiff'].is_null().sum(),
-            'RMSE': np.sqrt((data['Diff']**2).mean()),
-            'CV': 100*(np.sqrt((data['Diff']**2).mean())/np.nanmean(data['HDF_Population'])) if np.nanmean(data['HDF_Population']) != 0 else np.nan,
-            'MeanCEFPop': np.nanmean(data['HDF_Population']),
-            'NumCells':len(data),
-            'NumberBtw2Perc5Perc': len(data.filter((pl.col('AbsPercDiff') >= 2) & (pl.col('AbsPercDiff') <=5))),
-            'NumberGreater5Perc':len(data.filter(pl.col('AbsPercDiff') > 5)),
-            'NumberGreater200': len(data.filter(pl.col('AbsDiff') > 200)),
-            'NumberGreater10Perc':len(data.filter(pl.col('AbsPercDiff') > 10))
-        }, index=[0])
+        mean_hdf = data['HDF_Population'].drop_nulls().mean()
+        rmse_val = (data['Diff'].pow(2).mean()) ** 0.5
+        odf = pl.DataFrame({
+            'Geography': [geography],
+            'Size_Category': [sizecategory],
+            'Characteristic': [characteristic],
+            'MinDiff': [data['Diff'].drop_nulls().min()],
+            'MeanDiff': [data['Diff'].drop_nulls().mean()],
+            'MedianDiff': [data['Diff'].drop_nulls().median()],
+            'MaxDiff': [data['Diff'].drop_nulls().max()],
+            'MeanAbsDiff': [data['AbsDiff'].drop_nulls().mean()],
+            'MedianAbsDiff': [data['AbsDiff'].drop_nulls().median()],
+            'AbsDiff90th': [data['AbsDiff'].drop_nulls().quantile(0.90, interpolation='linear')],
+            'AbsDiff95th': [data['AbsDiff'].drop_nulls().quantile(0.95, interpolation='linear')],
+            'MinPercDiff': [data['PercDiff'].drop_nulls().min()],
+            'MeanPercDiff': [data['PercDiff'].drop_nulls().mean()],
+            'MedianPercDiff': [data['PercDiff'].drop_nulls().median()],
+            'MaxPercDiff': [data['PercDiff'].drop_nulls().max()],
+            'PercDiffNAs': [data['PercDiff'].is_null().sum()],
+            'MeanAbsPercDiff': [data['AbsPercDiff'].drop_nulls().mean()],
+            'MedianAbsPercDiff': [data['AbsPercDiff'].drop_nulls().median()],
+            'AbsPercDiff90th': [data['AbsPercDiff'].drop_nulls().quantile(0.90, interpolation='linear')],
+            'AbsPercDiff95th': [data['AbsPercDiff'].drop_nulls().quantile(0.95, interpolation='linear')],
+            'AbsPercDiffMax': [data['AbsPercDiff'].drop_nulls().max()],
+            'AbsPercDiffNAs': [data['AbsPercDiff'].is_null().sum()],
+            'RMSE': [rmse_val],
+            'CV': [100 * (rmse_val / mean_hdf) if mean_hdf is not None and mean_hdf != 0 else None],
+            'MeanCEFPop': [mean_hdf],
+            'NumCells': [len(data)],
+            'NumberBtw2Perc5Perc': [len(data.filter((pl.col('AbsPercDiff') >= 2) & (pl.col('AbsPercDiff') <= 5)))],
+            'NumberGreater5Perc': [len(data.filter(pl.col('AbsPercDiff') > 5))],
+            'NumberGreater200': [len(data.filter(pl.col('AbsDiff') > 200))],
+            'NumberGreater10Perc': [len(data.filter(pl.col('AbsPercDiff') > 10))],
+        })
     else:
-        odf = pd.DataFrame({
-            'Geography': geography,
-            'Size_Category': sizecategory,
-            'Characteristic': characteristic,
-            'MinDiff': 0,
-            'MeanDiff':0,
-            'MedianDiff':0,
-            'MaxDiff': 0,
-            'MeanAbsDiff':0,
-            'MedianAbsDiff':0,
-            'AbsDiff90th': 0,
-            'AbsDiff95th': 0,
-            'MinPercDiff': 0,
-            'MeanPercDiff':0,
-            'MedianPercDiff':0,
-            'MaxPercDiff': 0,
-            'PercDiffNAs': 0,
-            'MeanAbsPercDiff': 0,
-            'MedianAbsPercDiff': 0,
-            'AbsPercDiff90th': 0,
-            'AbsPercDiff95th': 0,
-            'AbsPercDiffMax': 0,
-            'AbsPercDiffNAs':0,
-            'RMSE': 0,
-            'CV': 0,
-            'MeanCEFPop':0,
-            'NumCells':0,
-            'NumberBtw2Perc5Perc':0,
-            'NumberGreater5Perc':0,
-            'NumberGreater200':0,
-            'NumberGreater10Perc':0
-        }, index=[0])
+        odf = pl.DataFrame({
+            'Geography': [geography],
+            'Size_Category': [sizecategory],
+            'Characteristic': [characteristic],
+            'MinDiff': [0.0], 'MeanDiff': [0.0], 'MedianDiff': [0.0], 'MaxDiff': [0.0],
+            'MeanAbsDiff': [0.0], 'MedianAbsDiff': [0.0], 'AbsDiff90th': [0.0], 'AbsDiff95th': [0.0],
+            'MinPercDiff': [0.0], 'MeanPercDiff': [0.0], 'MedianPercDiff': [0.0], 'MaxPercDiff': [0.0],
+            'PercDiffNAs': [0], 'MeanAbsPercDiff': [0.0], 'MedianAbsPercDiff': [0.0],
+            'AbsPercDiff90th': [0.0], 'AbsPercDiff95th': [0.0], 'AbsPercDiffMax': [0.0], 'AbsPercDiffNAs': [0],
+            'RMSE': [0.0], 'CV': [0.0], 'MeanCEFPop': [0.0], 'NumCells': [0],
+            'NumberBtw2Perc5Perc': [0], 'NumberGreater5Perc': [0], 'NumberGreater200': [0], 'NumberGreater10Perc': [0],
+        })
     return odf
 
 
@@ -120,7 +101,7 @@ def dfmdf():
 hdfcounties_totalpop = dfhdf().group_by('CountyGEOID').agg(HDF_Population = pl.len())
 mdfcounties_totalpop = dfmdf().group_by('CountyGEOID').agg(MDF_Population = pl.len())
 counties_totalpop =  hdfcounties_totalpop.join(mdfcounties_totalpop, on='CountyGEOID', how='full', coalesce = True).pipe(calculate_stats).collect()
-counties_totalpop.to_pandas(use_pyarrow_extension_array=True).to_csv(f"{OUTPUTDIR}/counties_totalpop.csv", index=False)
+counties_totalpop.write_csv(f"{OUTPUTDIR}/counties_totalpop.csv")
 ss = counties_totalpop.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -144,7 +125,7 @@ print(counties_lt1000)
 hdfplaces_totalpop = dfhdf().group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
 mdfplaces_totalpop = dfmdf().group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
 places_totalpop = allplacesdf.join(hdfplaces_totalpop.join(mdfplaces_totalpop, on='IncPlaceGEOID', how='full',coalesce=True), how='left', on='IncPlaceGEOID').pipe(calculate_stats).collect()
-places_totalpop.to_pandas(use_pyarrow_extension_array=True).to_csv(f"{OUTPUTDIR}/places_totalpop.csv", index=False)
+places_totalpop.write_csv(f"{OUTPUTDIR}/places_totalpop.csv")
 ss = places_totalpop.pipe(calculate_ss, geography="Place", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -165,7 +146,7 @@ print(places_lt500.height)
 hdftracts_totalpop = dfhdf().group_by('TractGEOID').agg(HDF_Population = pl.len())
 mdftracts_totalpop = dfmdf().group_by('TractGEOID').agg(MDF_Population = pl.len())
 tracts_totalpop =  alltractsdf.join(hdftracts_totalpop.join(mdftracts_totalpop, on='TractGEOID', how='full', coalesce=True), on='TractGEOID', how='left').pipe(calculate_stats).collect()
-tracts_totalpop.to_pandas(use_pyarrow_extension_array=True).to_csv(f"{OUTPUTDIR}/tracts_totalpop.csv", index=False)
+tracts_totalpop.write_csv(f"{OUTPUTDIR}/tracts_totalpop.csv")
 ss = tracts_totalpop.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -191,7 +172,7 @@ del blocks_totalpop
 hdfelemschdists_totalpop = dfhdf().group_by(['SchDistEGEOID']).agg(HDF_Population = pl.len())
 mdfelemschdists_totalpop = dfmdf().group_by(['SchDistEGEOID']).agg(MDF_Population = pl.len())
 elemschdists_totalpop = allelemschdistsdf.join(hdfelemschdists_totalpop.join(mdfelemschdists_totalpop, on='SchDistEGEOID', how='full', coalesce=True), how='left', on='SchDistEGEOID').pipe(calculate_stats).collect()
-elemschdists_totalpop.to_pandas().to_csv(f"{OUTPUTDIR}/elemschdists_totalpop.csv", index=False)
+elemschdists_totalpop.write_csv(f"{OUTPUTDIR}/elemschdists_totalpop.csv")
 ss = elemschdists_totalpop.pipe(calculate_ss, geography="ESD", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -205,7 +186,7 @@ for i in elemschdists_totalpop['Total_PopSize'].cat.get_categories():
 hdfsecschdists_totalpop = dfhdf().group_by(['SchDistSGEOID']).agg(HDF_Population = pl.len())
 mdfsecschdists_totalpop = dfmdf().group_by(['SchDistSGEOID']).agg(MDF_Population = pl.len())
 secschdists_totalpop =  allsecschdistsdf.join(hdfsecschdists_totalpop.join(mdfsecschdists_totalpop, on='SchDistSGEOID', how='full', coalesce=True), how='left', on='SchDistSGEOID').pipe(calculate_stats).collect()
-secschdists_totalpop.to_pandas().to_csv(f"{OUTPUTDIR}/secschdists_totalpop.csv", index=False)
+secschdists_totalpop.write_csv(f"{OUTPUTDIR}/secschdists_totalpop.csv")
 ss = secschdists_totalpop.pipe(calculate_ss, geography="SSD", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -219,7 +200,7 @@ for i in secschdists_totalpop['Total_PopSize'].cat.get_categories():
 hdfunischdists_totalpop = dfhdf().group_by(['SchDistUGEOID']).agg(HDF_Population = pl.len())
 mdfunischdists_totalpop = dfmdf().group_by(['SchDistUGEOID']).agg(MDF_Population = pl.len())
 unischdists_totalpop =  allunischdistsdf.join(hdfunischdists_totalpop.join(mdfunischdists_totalpop, on='SchDistUGEOID', how='full', coalesce=True), how='left', on='SchDistUGEOID').pipe(calculate_stats).collect()
-unischdists_totalpop.to_pandas().to_csv(f"{OUTPUTDIR}/unischdists_totalpop.csv", index=False)
+unischdists_totalpop.write_csv(f"{OUTPUTDIR}/unischdists_totalpop.csv")
 ss = unischdists_totalpop.pipe(calculate_ss, geography="USD", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -233,7 +214,7 @@ for i in unischdists_totalpop['Total_PopSize'].cat.get_categories():
 hdfmcds_totalpop = dfhdf().group_by(['MCDGEOID']).agg(HDF_Population = pl.len())
 mdfmcds_totalpop = dfmdf().group_by(['MCDGEOID']).agg(MDF_Population = pl.len())
 mcds_totalpop =  allmcdsdf.join(hdfmcds_totalpop.join(mdfmcds_totalpop, on='MCDGEOID', how='full', coalesce=True), how='left', on='MCDGEOID').pipe(calculate_stats).collect()
-mcds_totalpop.to_pandas().to_csv(f"{OUTPUTDIR}/mcds_totalpop.csv", index=False)
+mcds_totalpop.write_csv(f"{OUTPUTDIR}/mcds_totalpop.csv")
 ss = mcds_totalpop.pipe(calculate_ss, geography="MCD", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -247,7 +228,7 @@ for i in mcds_totalpop['Total_PopSize'].cat.get_categories():
 hdffedairs_totalpop = dfhdf().group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
 mdffedairs_totalpop = dfmdf().group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
 fedairs_totalpop =  allfedairsdf.join(hdffedairs_totalpop.join(mdffedairs_totalpop, on='FedAIRGEOID', how='full', coalesce=True), how='left', on='FedAIRGEOID').pipe(calculate_stats).collect()
-fedairs_totalpop.to_pandas().to_csv(f"{OUTPUTDIR}/fedairs_totalpop.csv", index=False)
+fedairs_totalpop.write_csv(f"{OUTPUTDIR}/fedairs_totalpop.csv")
 ss = fedairs_totalpop.pipe(calculate_ss, geography="Fed AIR", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -261,7 +242,7 @@ for i in fedairs_totalpop['Total_PopSize'].cat.get_categories():
 hdfotsas_totalpop = dfhdf().group_by(['OTSAGEOID']).agg(HDF_Population = pl.len())
 mdfotsas_totalpop = dfmdf().group_by(['OTSAGEOID']).agg(MDF_Population = pl.len())
 otsas_totalpop = allotsasdf.join(hdfotsas_totalpop.join(mdfotsas_totalpop, on='OTSAGEOID', how='full', coalesce=True), how='left', on='OTSAGEOID').pipe(calculate_stats).collect()
-otsas_totalpop.to_pandas().to_csv(f"{OUTPUTDIR}/otsas_totalpop.csv", index=False)
+otsas_totalpop.write_csv(f"{OUTPUTDIR}/otsas_totalpop.csv")
 ss = otsas_totalpop.pipe(calculate_ss, geography="OTSA", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -269,7 +250,7 @@ outputdflist.append(ss)
 hdfanvsas_totalpop = dfhdf().group_by(['ANVSAGEOID']).agg(HDF_Population = pl.len())
 mdfanvsas_totalpop = dfmdf().group_by(['ANVSAGEOID']).agg(MDF_Population = pl.len())
 anvsas_totalpop = allanvsasdf.join(hdfanvsas_totalpop.join(mdfanvsas_totalpop, on='ANVSAGEOID', how='full', coalesce=True), how='left', on='ANVSAGEOID').pipe(calculate_stats).collect()
-anvsas_totalpop.to_pandas().to_csv(f"{OUTPUTDIR}/anvsas_totalpop.csv", index=False)
+anvsas_totalpop.write_csv(f"{OUTPUTDIR}/anvsas_totalpop.csv")
 ss = anvsas_totalpop.pipe(calculate_ss, geography="ANVSA", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -283,7 +264,7 @@ for i in anvsas_totalpop['Total_PopSize'].cat.get_categories():
 hdfaiannh_totalpop = dfhdf().group_by(['AIANNHGEOID']).agg(HDF_Population = pl.len())
 mdfaiannh_totalpop = dfmdf().group_by(['AIANNHGEOID']).agg(MDF_Population = pl.len())
 aiannh_totalpop = allaiannhdf.join(hdfaiannh_totalpop.join(mdfaiannh_totalpop, on='AIANNHGEOID', how='full', coalesce=True), how='left', on='AIANNHGEOID').pipe(calculate_stats).collect()
-aiannh_totalpop.to_pandas().to_csv(f"{OUTPUTDIR}/aiannh_totalpop.csv", index=False)
+aiannh_totalpop.write_csv(f"{OUTPUTDIR}/aiannh_totalpop.csv")
 ss = aiannh_totalpop.pipe(calculate_ss, geography="AIANNH Area", sizecategory = "All", characteristic = "Total Population")
 outputdflist.append(ss)
 
@@ -320,8 +301,8 @@ for i in places_totalpop18p['Total_PopSize'].cat.get_categories():
     outputdflist.append(ss)
 
 # Tracts Total Population 18+
-hdftracts_totalpop18p = dfhdf().filter(pl.col('QAGE') >= 18).group_by('TractGEOID').size().agg(HDF_Population = pl.len())
-mdftracts_totalpop18p = dfmdf().filter(pl.col('QAGE') >= 18).group_by('TractGEOID').size().agg(MDF_Population = pl.len())
+hdftracts_totalpop18p = dfhdf().filter(pl.col('QAGE') >= 18).group_by('TractGEOID').agg(HDF_Population = pl.len())
+mdftracts_totalpop18p = dfmdf().filter(pl.col('QAGE') >= 18).group_by('TractGEOID').agg(MDF_Population = pl.len())
 tracts_totalpop18p =  alltractsdf.join(hdftracts_totalpop18p.join(mdftracts_totalpop18p, on='TractGEOID', how='full', coalesce=True), on='TractGEOID', how='left').pipe(calculate_stats).collect()
 ss = tracts_totalpop18p.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "Total Population Aged 18+")
 outputdflist.append(ss)
@@ -329,16 +310,16 @@ outputdflist.append(ss)
 # TODO
 # if runPRhere:
 #     # PR Counties/Municipios Total Population 18+
-#     hdfcountiespr_totalpop18p = dfhdfpr[(dfhdfpr['QAGE'] >= 18)].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-#     mdfcountiespr_totalpop18p = dfmdfpr[(dfmdfpr['QAGE'] >= 18)].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-#     countiespr_totalpop18p =  pd.merge(hdfcountiespr_totalpop18p, mdfcountiespr_totalpop18p, on='GEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+#     hdfcountiespr_totalpop18p = dfhdfpr().filter(pl.col('QAGE') >= 18).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+#     mdfcountiespr_totalpop18p = dfmdfpr().filter(pl.col('QAGE') >= 18).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+#     countiespr_totalpop18p =  hdfcountiespr_totalpop18p.join(mdfcountiespr_totalpop18p, on='GEOID', how="full", coalesce=True).pipe(calculate_stats)
 #     ss = countiespr_totalpop18p.pipe(calculate_ss, geography="PR County/Municipio", sizecategory = "All", characteristic = "Total Population Aged 18+")
 #     outputdflist.append(ss)
 
 #     # PR Tracts Total Population 18+
-#     hdftractspr_totalpop18p = dfhdfpr[(dfhdfpr['QAGE'] >= 18)].group_by('TractGEOID').agg(HDF_Population = pl.len())
-#     mdftractspr_totalpop18p = dfmdfpr[(dfmdfpr['QAGE'] >= 18)].group_by('TractGEOID').agg(MDF_Population = pl.len())
-#     tractspr_totalpop18p =  pd.merge(hdftractspr_totalpop18p, mdftractspr_totalpop18p, on='GEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+#     hdftractspr_totalpop18p = dfhdfpr().filter(pl.col('QAGE') >= 18).group_by('TractGEOID').agg(HDF_Population = pl.len())
+#     mdftractspr_totalpop18p = dfmdfpr().filter(pl.col('QAGE') >= 18).group_by('TractGEOID').agg(MDF_Population = pl.len())
+#     tractspr_totalpop18p =  hdftractspr_totalpop18p.join(mdftractspr_totalpop18p, on='GEOID', how="full", coalesce=True).pipe(calculate_stats)
 #     ss = tractspr_totalpop18p.pipe(calculate_ss, geography="PR Tract", sizecategory = "All", characteristic = "Total Population Aged 18+")
 #     outputdflist.append(ss)
 
@@ -488,8 +469,8 @@ for r in racealonecats:
     outputdflist.append(ss)
     counties_racealone = counties_racealone.with_columns(Race_PopSize = pl.col('HDF_Population').cut(breaks = [10,100], left_closed = True))
     for i in counties_racealone['Race_PopSize'].cat.get_categories():
-        # temp = counties_racealone[counties_racealone['Race_PopSize'] == i]
-        # temp.to_csv(f"{OUTPUTDIR}/counties_racealone_race{r}_{i}.csv",index=False)
+        # temp = counties_racealone.filter(pl.col('Race_PopSize') == i)
+        # temp.write_csv(f"{OUTPUTDIR}/counties_racealone_race{r}_{i}.csv")
         ss = counties_racealone.filter(pl.col('Race_PopSize') == i).pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "{race}".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
 
@@ -502,8 +483,8 @@ for r in racealonecats:
     outputdflist.append(ss)
     places_racealone = places_racealone.with_columns(Race_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in places_racealone['Race_PopSize'].cat.get_categories():
-        # temp = places_racealone[places_racealone['Race_PopSize'] == i]
-        # temp.to_csv(f"{OUTPUTDIR}/places_racealone_race{r}_{i}.csv",index=False)
+        # temp = places_racealone.filter(pl.col('Race_PopSize') == i)
+        # temp.write_csv(f"{OUTPUTDIR}/places_racealone_race{r}_{i}.csv")
         ss = places_racealone.filter(pl.col('Race_PopSize') == i).pipe(calculate_ss, geography="Place", sizecategory = str(i), characteristic = "{race}".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
 
@@ -585,14 +566,14 @@ print("{} Race Alone Done".format(datetime.now()))
 
 # State Hispanic By Race Alone
 for r in racealonecats:
-    hdfstates_hispracealone = dfhdf().filter((pl.col('CENHISP') == '2'),(pl.col('RACEALONE') == r)).group_by(['TABBLKST']).agg(HDF_Population = pl.len())
-    mdfstates_hispracealone = dfmdf().filter((pl.col('CENHISP') == '2'),(pl.col('RACEALONE') == r)).group_by(['TABBLKST']).agg(MDF_Population = pl.len())
-    states_hispracealone =  pd.merge(hdfstates_hispracealone, mdfstates_hispracealone, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfstates_hispracealone = dfhdf().filter((pl.col('CENHISP') == '2'),(pl.col('RACEALONE') == r)).group_by('StateGEOID').agg(HDF_Population = pl.len())
+    mdfstates_hispracealone = dfmdf().filter((pl.col('CENHISP') == '2'),(pl.col('RACEALONE') == r)).group_by('StateGEOID').agg(MDF_Population = pl.len())
+    states_hispracealone =  allstatesdf.join(hdfstates_hispracealone.join(mdfstates_hispracealone, on='StateGEOID', how='full', coalesce=True), how='left', on='StateGEOID').pipe(calculate_stats).collect()
     ss = states_hispracealone.pipe(calculate_ss, geography="State", sizecategory = "All", characteristic = "Hispanic {race}".format(race = racealonedict.get(r)))
     outputdflist.append(ss)
-    hdfstates_nonhispracealone = dfhdf().filter((pl.col('CENHISP') == '1'),(pl.col('RACEALONE') == r)).group_by(['TABBLKST']).agg(HDF_Population = pl.len())
-    mdfstates_nonhispracealone = dfmdf().filter((pl.col('CENHISP') == '1'),(pl.col('RACEALONE') == r)).group_by(['TABBLKST']).agg(MDF_Population = pl.len())
-    states_nonhispracealone =  pd.merge(hdfstates_nonhispracealone, mdfstates_nonhispracealone, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfstates_nonhispracealone = dfhdf().filter((pl.col('CENHISP') == '1'),(pl.col('RACEALONE') == r)).group_by('StateGEOID').agg(HDF_Population = pl.len())
+    mdfstates_nonhispracealone = dfmdf().filter((pl.col('CENHISP') == '1'),(pl.col('RACEALONE') == r)).group_by('StateGEOID').agg(MDF_Population = pl.len())
+    states_nonhispracealone =  allstatesdf.join(hdfstates_nonhispracealone.join(mdfstates_nonhispracealone, on='StateGEOID', how='full', coalesce=True), how='left', on='StateGEOID').pipe(calculate_stats).collect()
     ss = states_nonhispracealone.pipe(calculate_ss, geography="State", sizecategory = "All", characteristic = "Non-Hispanic {race}".format(race = racealonedict.get(r)))
     outputdflist.append(ss)
 
@@ -611,11 +592,11 @@ for r in racealonecats:
     outputdflist.append(ss)
     counties_hispracealone = counties_hispracealone.with_columns(HispRace_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in counties_hispracealone['HispRace_PopSize'].cat.get_categories():
-        ss = counties_hispracealone[counties_hispracealone['HispRace_PopSize'] == i].pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "Hispanic {race}".format(race = racealonedict.get(r)))
+        ss = counties_hispracealone.filter(pl.col('HispRace_PopSize') == i).pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "Hispanic {race}".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
     counties_nonhispracealone = counties_nonhispracealone.with_columns(HispRace_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in counties_nonhispracealone['HispRace_PopSize'].cat.get_categories():
-        ss = counties_nonhispracealone[counties_nonhispracealone['HispRace_PopSize'] == i].pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "Non-Hispanic {race}".format(race = racealonedict.get(r)))
+        ss = counties_nonhispracealone.filter(pl.col('HispRace_PopSize') == i).pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "Non-Hispanic {race}".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
 
 # Place Hispanic By Race Alone
@@ -632,11 +613,11 @@ for r in racealonecats:
     outputdflist.append(ss)
     places_hispracealone = places_hispracealone.with_columns(HispRace_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in places_hispracealone['HispRace_PopSize'].cat.get_categories():
-        ss = places_hispracealone[places_hispracealone['HispRace_PopSize'] == i].pipe(calculate_ss, geography="Place", sizecategory = str(i), characteristic = "Hispanic {race}".format(race = racealonedict.get(r)))
+        ss = places_hispracealone.filter(pl.col('HispRace_PopSize') == i).pipe(calculate_ss, geography="Place", sizecategory = str(i), characteristic = "Hispanic {race}".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
     places_nonhispracealone = places_nonhispracealone.with_columns(HispRace_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in places_nonhispracealone['HispRace_PopSize'].cat.get_categories():
-        ss = places_nonhispracealone[places_nonhispracealone['HispRace_PopSize'] == i].pipe(calculate_ss, geography="Place", sizecategory = str(i), characteristic = "Non-Hispanic {race}".format(race = racealonedict.get(r)))
+        ss = places_nonhispracealone.filter(pl.col('HispRace_PopSize') == i).pipe(calculate_ss, geography="Place", sizecategory = str(i), characteristic = "Non-Hispanic {race}".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
 
 # Tract Hispanic By Race Alone
@@ -653,11 +634,11 @@ for r in racealonecats:
     outputdflist.append(ss)
     tracts_hispracealone = tracts_hispracealone.with_columns(HispRace_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in tracts_hispracealone['HispRace_PopSize'].cat.get_categories():
-        ss = tracts_hispracealone[tracts_hispracealone['HispRace_PopSize'] == i].pipe(calculate_ss, geography="Tract", sizecategory = str(i), characteristic = "Hispanic {race}".format(race = racealonedict.get(r)))
+        ss = tracts_hispracealone.filter(pl.col('HispRace_PopSize') == i).pipe(calculate_ss, geography="Tract", sizecategory = str(i), characteristic = "Hispanic {race}".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
     tracts_nonhispracealone = tracts_nonhispracealone.with_columns(HispRace_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in tracts_nonhispracealone['HispRace_PopSize'].cat.get_categories():
-        ss = tracts_nonhispracealone[tracts_nonhispracealone['HispRace_PopSize'] == i].pipe(calculate_ss, geography="Tract", sizecategory = str(i), characteristic = "Non-Hispanic {race}".format(race = racealonedict.get(r)))
+        ss = tracts_nonhispracealone.filter(pl.col('HispRace_PopSize') == i).pipe(calculate_ss, geography="Tract", sizecategory = str(i), characteristic = "Non-Hispanic {race}".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
 
 # Tract Hispanic By Race Alone Aged 18+
@@ -674,11 +655,11 @@ for r in racealonecats:
     outputdflist.append(ss)
     tracts_hispracealone18p = tracts_hispracealone18p.with_columns(HispRace_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in tracts_hispracealone18p['HispRace_PopSize'].cat.get_categories():
-        ss = tracts_hispracealone18p[tracts_hispracealone18p['HispRace_PopSize'] == i].pipe(calculate_ss, geography="Tract", sizecategory = str(i), characteristic = "Hispanic {race} Aged 18+".format(race = racealonedict.get(r)))
+        ss = tracts_hispracealone18p.filter(pl.col('HispRace_PopSize') == i).pipe(calculate_ss, geography="Tract", sizecategory = str(i), characteristic = "Hispanic {race} Aged 18+".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
     tracts_nonhispracealone18p = tracts_nonhispracealone18p.with_columns(HispRace_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in tracts_nonhispracealone18p['HispRace_PopSize'].cat.get_categories():
-        ss = tracts_nonhispracealone18p[tracts_nonhispracealone18p['HispRace_PopSize'] == i].pipe(calculate_ss, geography="Tract", sizecategory = str(i), characteristic = "Non-Hispanic {race} Aged 18+".format(race = racealonedict.get(r)))
+        ss = tracts_nonhispracealone18p.filter(pl.col('HispRace_PopSize') == i).pipe(calculate_ss, geography="Tract", sizecategory = str(i), characteristic = "Non-Hispanic {race} Aged 18+".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
 
 # Block Group Hispanic By Race Alone Aged 18+
@@ -695,11 +676,11 @@ for r in racealonecats:
     outputdflist.append(ss)
     blockgroups_hispracealone18p = blockgroups_hispracealone18p.with_columns(HispRace_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in blockgroups_hispracealone18p['HispRace_PopSize'].cat.get_categories():
-        ss = blockgroups_hispracealone18p[blockgroups_hispracealone18p['HispRace_PopSize'] == i].pipe(calculate_ss, geography="Block Group", sizecategory = str(i), characteristic = "Hispanic {race} Aged 18+".format(race = racealonedict.get(r)))
+        ss = blockgroups_hispracealone18p.filter(pl.col('HispRace_PopSize') == i).pipe(calculate_ss, geography="Block Group", sizecategory = str(i), characteristic = "Hispanic {race} Aged 18+".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
     blockgroups_nonhispracealone18p = blockgroups_nonhispracealone18p.with_columns(HispRace_PopSize = pl.col('HDF_Population').cut(breaks= [10,100], left_closed = True))
     for i in blockgroups_nonhispracealone18p['HispRace_PopSize'].cat.get_categories():
-        ss = blockgroups_nonhispracealone18p[blockgroups_nonhispracealone18p['HispRace_PopSize'] == i].pipe(calculate_ss, geography="Block Group", sizecategory = str(i), characteristic = "Non-Hispanic {race} Aged 18+".format(race = racealonedict.get(r)))
+        ss = blockgroups_nonhispracealone18p.filter(pl.col('HispRace_PopSize') == i).pipe(calculate_ss, geography="Block Group", sizecategory = str(i), characteristic = "Non-Hispanic {race} Aged 18+".format(race = racealonedict.get(r)))
         outputdflist.append(ss)
 
 print("{} Hispanic By Race Alone Done".format(datetime.now()))
@@ -1074,22 +1055,22 @@ print("{} Num Races Done".format(datetime.now()))
 print("{} Start Detailed Age".format(datetime.now()))
 # County Sex by 3 Age Groups
 for g in qage_3g_cats:
-    hdfcounties_3gage = dfhdf[dfhdf['QAGE_3G'] == g].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-    mdfcounties_3gage = dfmdf[dfmdf['QAGE_3G'] == g].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-    counties_3gage =  pd.merge(hdfcounties_3gage, mdfcounties_3gage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfcounties_3gage = dfhdf().filter(pl.col('QAGE_3G') == g).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+    mdfcounties_3gage = dfmdf().filter(pl.col('QAGE_3G') == g).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+    counties_3gage =  hdfcounties_3gage.join(mdfcounties_3gage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = counties_3gage.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "Age {age}".format(age=g))
     outputdflist.append(ss)
 for s in sexcats:
-    hdfcounties_sex = dfhdf[dfhdf['QSEX'] == s].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-    mdfcounties_sex = dfmdf[dfmdf['QSEX'] == s].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-    counties_sex =  pd.merge(hdfcounties_sex, mdfcounties_sex, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfcounties_sex = dfhdf().filter(pl.col('QSEX') == s).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+    mdfcounties_sex = dfmdf().filter(pl.col('QSEX') == s).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+    counties_sex =  hdfcounties_sex.join(mdfcounties_sex, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = counties_sex.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "{sex}".format(sex = sexdict.get(s)))
     outputdflist.append(ss)
 for s in sexcats:
     for g in qage_3g_cats:
-        hdfcounties_sex3gage = dfhdf[(dfhdf['QAGE_3G'] == g)&(dfhdf['QSEX'] == s)].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-        mdfcounties_sex3gage = dfmdf[(dfmdf['QAGE_3G'] == g)&(dfmdf['QSEX'] == s)].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-        counties_sex3gage =  pd.merge(hdfcounties_sex3gage, mdfcounties_sex3gage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdfcounties_sex3gage = dfhdf().filter((pl.col('QAGE_3G') == g), (pl.col('QSEX') == s).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+        mdfcounties_sex3gage = dfmdf().filter((pl.col('QAGE_3G') == g), (pl.col('QSEX') == s)).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+        counties_sex3gage =  hdfcounties_sex3gage.join(mdfcounties_sex3gage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = counties_sex3gage.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 
@@ -1098,103 +1079,103 @@ print("{} County Sex by 3 Age Done".format(datetime.now()))
 # County Sex by 3 Age Groups [0.0, 1000.0)]
 # Must use .reindex(counties_lt1000index, fill_value=0).reset_index()
 for g in qage_3g_cats:
-    hdfcounties_3gage = dfhdf[dfhdf['QAGE_3G'] == g].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-    mdfcounties_3gage = dfmdf[dfmdf['QAGE_3G'] == g].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-    counties_3gage =  pd.merge(hdfcounties_3gage, mdfcounties_3gage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfcounties_3gage = dfhdf().filter(pl.col('QAGE_3G') == g).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+    mdfcounties_3gage = dfmdf().filter(pl.col('QAGE_3G') == g).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+    counties_3gage =  hdfcounties_3gage.join(mdfcounties_3gage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = counties_3gage.pipe(calculate_ss, geography="County", sizecategory = "[0.0, 1000.0)", characteristic = "Age {age}".format(age=g))
     outputdflist.append(ss)
 for s in sexcats:
-    hdfcounties_sex = dfhdf[dfhdf['QSEX'] == s].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-    mdfcounties_sex = dfmdf[dfmdf['QSEX'] == s].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-    counties_sex =  pd.merge(hdfcounties_sex, mdfcounties_sex, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfcounties_sex = dfhdf().filter(pl.col('QSEX') == s).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+    mdfcounties_sex = dfmdf().filter(pl.col('QSEX') == s).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+    counties_sex =  hdfcounties_sex.join(mdfcounties_sex, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = counties_sex.pipe(calculate_ss, geography="County", sizecategory = "[0.0, 1000.0)", characteristic = "{sex}".format(sex = sexdict.get(s)))
     outputdflist.append(ss)
 for s in sexcats:
     for g in qage_3g_cats:
-        hdfcounties_sex3gage = dfhdf[(dfhdf['QAGE_3G'] == g)&(dfhdf['QSEX'] == s)].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-        mdfcounties_sex3gage = dfmdf[(dfmdf['QAGE_3G'] == g)&(dfmdf['QSEX'] == s)].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-        counties_sex3gage =  pd.merge(hdfcounties_sex3gage, mdfcounties_sex3gage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdfcounties_sex3gage = dfhdf().filter((pl.col('QAGE_3G') == g), (pl.col('QSEX') == s).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+        mdfcounties_sex3gage = dfmdf().filter((pl.col('QAGE_3G') == g), (pl.col('QSEX') == s)).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+        counties_sex3gage =  hdfcounties_sex3gage.join(mdfcounties_sex3gage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = counties_sex3gage.pipe(calculate_ss, geography="County", sizecategory = "[0.0, 1000.0)", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 
 # Place Sex by 3 Age Groups
 for g in qage_3g_cats:
-    hdfplaces_3gage = dfhdf[dfhdf['QAGE_3G'] == g].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-    mdfplaces_3gage = dfmdf[dfmdf['QAGE_3G'] == g].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-    places_3gage =  pd.merge(hdfplaces_3gage, mdfplaces_3gage, on=['IncPlaceGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfplaces_3gage = dfhdf().filter(pl.col('QAGE_3G') == g).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+    mdfplaces_3gage = dfmdf().filter(pl.col('QAGE_3G') == g).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+    places_3gage =  hdfplaces_3gage.join(mdfplaces_3gage, on=['IncPlaceGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = places_3gage.pipe(calculate_ss, geography="Place", sizecategory = "All", characteristic = "Age {}".format(g))
     outputdflist.append(ss)
 for s in sexcats:
-    hdfplaces_sex = dfhdf[dfhdf['QSEX'] == s].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-    mdfplaces_sex = dfmdf[dfmdf['QSEX'] == s].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-    places_sex =  pd.merge(hdfplaces_sex, mdfplaces_sex, on=['IncPlaceGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfplaces_sex = dfhdf().filter(pl.col('QSEX') == s).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+    mdfplaces_sex = dfmdf().filter(pl.col('QSEX') == s).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+    places_sex =  hdfplaces_sex.join(mdfplaces_sex, on=['IncPlaceGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = places_sex.pipe(calculate_ss, geography="Place", sizecategory = "All", characteristic = "{sex}".format(sex = sexdict.get(s)))
     outputdflist.append(ss)
 for s in sexcats:
     for g in qage_3g_cats:
-        hdfplaces_sex3gage = dfhdf[(dfhdf['QAGE_3G'] == g) & (dfhdf['QSEX']== s)].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-        mdfplaces_sex3gage = dfmdf[(dfmdf['QAGE_3G'] == g) & (dfmdf['QSEX']== s)].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-        places_sex3gage =  pd.merge(hdfplaces_sex3gage, mdfplaces_sex3gage, on=['IncPlaceGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdfplaces_sex3gage = dfhdf().filter((pl.col('QAGE_3G') == g) & (pl.col('QSEX')== s).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+        mdfplaces_sex3gage = dfmdf().filter((pl.col('QAGE_3G') == g) & (pl.col('QSEX')== s).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+        places_sex3gage =  hdfplaces_sex3gage.join(mdfplaces_sex3gage, on=['IncPlaceGEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = places_sex3gage.pipe(calculate_ss, geography="Place", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 
 # Place Sex by 3 Age Groups [0.0, 500.0)
 # Must use .reindex(places_lt500index, fill_value=0).reset_index()
 for g in qage_3g_cats:
-    hdfplaces_3gage = dfhdf[dfhdf['QAGE_3G'] == g].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-    mdfplaces_3gage = dfmdf[dfmdf['QAGE_3G'] == g].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-    places_3gage =  pd.merge(hdfplaces_3gage, mdfplaces_3gage, on=['IncPlaceGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfplaces_3gage = dfhdf().filter(pl.col('QAGE_3G') == g).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+    mdfplaces_3gage = dfmdf().filter(pl.col('QAGE_3G') == g).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+    places_3gage =  hdfplaces_3gage.join(mdfplaces_3gage, on=['IncPlaceGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = places_3gage.pipe(calculate_ss, geography="Place", sizecategory = "[0.0, 500.0)", characteristic = "Age {}".format(g))
     outputdflist.append(ss)
 for s in sexcats:
-    hdfplaces_sex = dfhdf[dfhdf['QSEX'] == s].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-    mdfplaces_sex = dfmdf[dfmdf['QSEX'] == s].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-    places_sex =  pd.merge(hdfplaces_sex, mdfplaces_sex, on=['IncPlaceGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfplaces_sex = dfhdf().filter(pl.col('QSEX') == s).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+    mdfplaces_sex = dfmdf().filter(pl.col('QSEX') == s).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+    places_sex =  hdfplaces_sex.join(mdfplaces_sex, on=['IncPlaceGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = places_sex.pipe(calculate_ss, geography="Place", sizecategory = "[0.0, 500.0)", characteristic = "{sex}".format(sex = sexdict.get(s)))
     outputdflist.append(ss)
 for s in sexcats:
     for g in qage_3g_cats:
-        hdfplaces_sex3gage = dfhdf[(dfhdf['QAGE_3G'] == g) & (dfhdf['QSEX']== s)].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-        mdfplaces_sex3gage = dfmdf[(dfmdf['QAGE_3G'] == g) & (dfmdf['QSEX']== s)].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-        places_sex3gage =  pd.merge(hdfplaces_sex3gage, mdfplaces_sex3gage, on=['IncPlaceGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdfplaces_sex3gage = dfhdf().filter((pl.col('QAGE_3G') == g) & (pl.col('QSEX')== s).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+        mdfplaces_sex3gage = dfmdf().filter((pl.col('QAGE_3G') == g) & (pl.col('QSEX')== s).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+        places_sex3gage =  hdfplaces_sex3gage.join(mdfplaces_sex3gage, on=['IncPlaceGEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = places_sex3gage.pipe(calculate_ss, geography="Place", sizecategory = "[0.0, 500.0)", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 
 # Tract Sex by 3 Age Groups
 for g in qage_3g_cats:
-    hdftracts_3gage = dfhdf[dfhdf['QAGE_3G'] == g].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-    mdftracts_3gage = dfmdf[dfmdf['QAGE_3G'] == g].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-    tracts_3gage =  pd.merge(hdftracts_3gage, mdftracts_3gage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdftracts_3gage = dfhdf().filter(pl.col('QAGE_3G') == g).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+    mdftracts_3gage = dfmdf().filter(pl.col('QAGE_3G') == g).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+    tracts_3gage =  hdftracts_3gage.join(mdftracts_3gage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = tracts_3gage.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "Age {}".format(g))
     outputdflist.append(ss)
 for s in sexcats:
-    hdftracts_sex = dfhdf[(dfhdf['QSEX']== s)].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-    mdftracts_sex = dfmdf[(dfmdf['QSEX']== s)].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-    tracts_sex =  pd.merge(hdftracts_sex, mdftracts_sex, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdftracts_sex = dfhdf().filter(pl.col('QSEX') == s).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+    mdftracts_sex = dfmdf().filter(pl.col('QSEX') == s).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+    tracts_sex =  hdftracts_sex.join(mdftracts_sex, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = tracts_sex.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "{sex}".format(sex = sexdict.get(s)))
     outputdflist.append(ss)
 for s in sexcats:
     for g in qage_3g_cats:
-        hdftracts_sex3gage = dfhdf[(dfhdf['QAGE_3G'] == g) & (dfhdf['QSEX']== s)].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-        mdftracts_sex3gage = dfmdf[(dfmdf['QAGE_3G'] == g) & (dfmdf['QSEX']== s)].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-        tracts_sex3gage =  pd.merge(hdftracts_sex3gage, mdftracts_sex3gage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdftracts_sex3gage = dfhdf().filter((pl.col('QAGE_3G') == g) & (pl.col('QSEX')== s).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+        mdftracts_sex3gage = dfmdf().filter((pl.col('QAGE_3G') == g) & (pl.col('QSEX')== s).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+        tracts_sex3gage =  hdftracts_sex3gage.join(mdftracts_sex3gage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = tracts_sex3gage.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 print("{} Sex By 3 Age Groups Done".format(datetime.now()))
 
 # County 5-Year Age Groups
 for g in qage_5y_cats:
-    hdfcounties_5yage = dfhdf[dfhdf['QAGE_5Y'] == g].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-    mdfcounties_5yage = dfmdf[dfmdf['QAGE_5Y'] == g].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-    counties_5yage =  pd.merge(hdfcounties_5yage, mdfcounties_5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfcounties_5yage = dfhdf().filter(pl.col('QAGE_5Y') == g).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+    mdfcounties_5yage = dfmdf().filter(pl.col('QAGE_5Y') == g).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+    counties_5yage =  hdfcounties_5yage.join(mdfcounties_5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = counties_5yage.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "Age {}".format(g))
     outputdflist.append(ss)
 # County Sex x 5-Year Age Groups
 for s in sexcats:
     for g in qage_5y_cats:
-        hdfcounties_sex5yage = dfhdf[(dfhdf['QAGE_5Y'] == g) & (dfhdf['QSEX']== s)].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-        mdfcounties_sex5yage = dfmdf[(dfmdf['QAGE_5Y'] == g) & (dfmdf['QSEX']== s)].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-        counties_sex5yage =  pd.merge(hdfcounties_sex5yage, mdfcounties_sex5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdfcounties_sex5yage = dfhdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+        mdfcounties_sex5yage = dfmdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+        counties_sex5yage =  hdfcounties_sex5yage.join(mdfcounties_sex5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = counties_sex5yage.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 
@@ -1202,134 +1183,134 @@ if runAGEBYRACE:
     # County 5-Year Age Groups by RACEALONE
     for r in racealonecats:
         # for g in qage_5y_cats:
-        #     hdfcounties_5yage = dfhdf[(dfhdf['QAGE_5Y'] == g)&(dfhdf['RACEALONE'] == r)].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-        #     mdfcounties_5yage = dfmdf[(dfmdf['QAGE_5Y'] == g)&(dfmdf['RACEALONE'] == r)].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-        #     counties_5yage =  pd.merge(hdfcounties_5yage, mdfcounties_5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        #     hdfcounties_5yage = dfhdf().filter((pl.col('QAGE_5Y') == g)&(pl.col('RACEALONE') == r).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+        #     mdfcounties_5yage = dfmdf().filter((pl.col('QAGE_5Y') == g)&(pl.col('RACEALONE') == r).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+        #     counties_5yage =  hdfcounties_5yage.join(mdfcounties_5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         #     ss = counties_5yage.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "{race} Age {agegroup}".format(race = racealonedict.get(r),agegroup=g))
         #     outputdflist.append(ss)
         for s in sexcats:
             for g in qage_5y_cats:
-                hdfcounties_sex5yage = dfhdf[(dfhdf['QAGE_5Y'] == g) & (dfhdf['QSEX']== s)&(dfhdf['RACEALONE'] == r)].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-                mdfcounties_sex5yage = dfmdf[(dfmdf['QAGE_5Y'] == g) & (dfmdf['QSEX']== s)&(dfmdf['RACEALONE'] == r)].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-                counties_sex5yage =  pd.merge(hdfcounties_sex5yage, mdfcounties_sex5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+                hdfcounties_sex5yage = dfhdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s)&(pl.col('RACEALONE') == r).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+                mdfcounties_sex5yage = dfmdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s)&(pl.col('RACEALONE') == r).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+                counties_sex5yage =  hdfcounties_sex5yage.join(mdfcounties_sex5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
                 ss = counties_sex5yage.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "{race} {sex} Age {agegroup}".format(race = racealonedict.get(r), sex = sexdict.get(s), agegroup = g))
                 outputdflist.append(ss)
 
     # County 5-Year Age Groups by RACE AOIC
     for rg in racegroups:
         # for g in qage_5y_cats:
-        #     hdfcounties_5yage = dfhdf[(dfhdf['QAGE_5Y'] == g)&(dfhdf[rg]==1)].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-        #     mdfcounties_5yage = dfmdf[(dfmdf['QAGE_5Y'] == g)&(dfmdf[rg]==1)].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-        #     counties_5yage =  pd.merge(hdfcounties_5yage, mdfcounties_5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        #     hdfcounties_5yage = dfhdf().filter((pl.col('QAGE_5Y') == g)&(dfhdf[rg]==1).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+        #     mdfcounties_5yage = dfmdf().filter((pl.col('QAGE_5Y') == g)&(dfmdf[rg]==1).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+        #     counties_5yage =  hdfcounties_5yage.join(mdfcounties_5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         #     ss = counties_5yage.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "{race} Age {agegroup}".format(race = raceincombdict.get(rg),agegroup=g))
         #     outputdflist.append(ss)
         for s in sexcats:
             for g in qage_5y_cats:
-                hdfcounties_sex5yage = dfhdf[(dfhdf['QAGE_5Y'] == g) & (dfhdf['QSEX']== s)&(dfhdf[rg]==1)].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-                mdfcounties_sex5yage = dfmdf[(dfmdf['QAGE_5Y'] == g) & (dfmdf['QSEX']== s)&(dfmdf[rg]==1)].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-                counties_sex5yage =  pd.merge(hdfcounties_sex5yage, mdfcounties_sex5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+                hdfcounties_sex5yage = dfhdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s)&(dfhdf[rg]==1).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+                mdfcounties_sex5yage = dfmdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s)&(dfmdf[rg]==1).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+                counties_sex5yage =  hdfcounties_sex5yage.join(mdfcounties_sex5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
                 ss = counties_sex5yage.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "{race} {sex} Age {agegroup}".format(race = raceincombdict.get(rg), sex = sexdict.get(s), agegroup = g))
                 outputdflist.append(ss)
 
 # Place 5-Year Age Groups
 for g in qage_5y_cats:
-    hdfplaces_5yage = dfhdf[dfhdf['QAGE_5Y'] == g].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-    mdfplaces_5yage = dfmdf[dfmdf['QAGE_5Y'] == g].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-    places_5yage =  pd.merge(hdfplaces_5yage, mdfplaces_5yage, on=['IncPlaceGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfplaces_5yage = dfhdf().filter(pl.col('QAGE_5Y') == g).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+    mdfplaces_5yage = dfmdf().filter(pl.col('QAGE_5Y') == g).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+    places_5yage =  hdfplaces_5yage.join(mdfplaces_5yage, on=['IncPlaceGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = places_5yage.pipe(calculate_ss, geography="Place", sizecategory = "All", characteristic = "Age {}".format(g))
     outputdflist.append(ss)
 # Place Sex x 5-Year Age Groups
 for s in sexcats:
     for g in qage_5y_cats:
-        hdfplaces_sex5yage = dfhdf[(dfhdf['QAGE_5Y'] == g) & (dfhdf['QSEX']== s)].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-        mdfplaces_sex5yage = dfmdf[(dfmdf['QAGE_5Y'] == g) & (dfmdf['QSEX']== s)].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-        places_sex5yage =  pd.merge(hdfplaces_sex5yage, mdfplaces_sex5yage, on=['IncPlaceGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdfplaces_sex5yage = dfhdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+        mdfplaces_sex5yage = dfmdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+        places_sex5yage =  hdfplaces_sex5yage.join(mdfplaces_sex5yage, on=['IncPlaceGEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = places_sex5yage.pipe(calculate_ss, geography="Place", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 
 
 # Tract 5-Year Age Groups
 for g in qage_5y_cats:
-    hdftracts_5yage = dfhdf[dfhdf['QAGE_5Y'] == g].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-    mdftracts_5yage = dfmdf[dfmdf['QAGE_5Y'] == g].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-    tracts_5yage =  pd.merge(hdftracts_5yage, mdftracts_5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdftracts_5yage = dfhdf().filter(pl.col('QAGE_5Y') == g).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+    mdftracts_5yage = dfmdf().filter(pl.col('QAGE_5Y') == g).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+    tracts_5yage =  hdftracts_5yage.join(mdftracts_5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = tracts_5yage.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "Age {}".format(g))
     outputdflist.append(ss)
 # Tract Sex x 5-Year Age Groups
 for s in sexcats:
     for g in qage_5y_cats:
-        hdftracts_sex5yage = dfhdf[(dfhdf['QAGE_5Y'] == g) & (dfhdf['QSEX']== s)].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-        mdftracts_sex5yage = dfmdf[(dfmdf['QAGE_5Y'] == g) & (dfmdf['QSEX']== s)].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-        tracts_sex5yage =  pd.merge(hdftracts_sex5yage, mdftracts_sex5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdftracts_sex5yage = dfhdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+        mdftracts_sex5yage = dfmdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+        tracts_sex5yage =  hdftracts_sex5yage.join(mdftracts_sex5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = tracts_sex5yage.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 
 if runPRhere:
     # PR Counties/Municipios Sex and 5-Year Age Groups
     for s in sexcats:
-        hdfcountiespr_sex = dfhdfpr[(dfhdfpr['QSEX']== s)].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-        mdfcountiespr_sex = dfmdfpr[(dfmdfpr['QSEX']== s)].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-        countiespr_sex =  pd.merge(hdfcountiespr_sex, mdfcountiespr_sex, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdfcountiespr_sex = dfhdfpr().filter(pl.col('QSEX') == s).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+        mdfcountiespr_sex = dfmdfpr().filter(pl.col('QSEX') == s).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+        countiespr_sex =  hdfcountiespr_sex.join(mdfcountiespr_sex, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = countiespr_sex.pipe(calculate_ss, geography="PR County/Municipio", sizecategory = "All", characteristic = "{sex}".format(sex = sexdict.get(s)))
         outputdflist.append(ss)
     # PR Counties/Municipios 5-Year Age Groups
     for g in qage_5y_cats:
-        hdfcountiespr_5yage = dfhdfpr[dfhdfpr['QAGE_5Y'] == g].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-        mdfcountiespr_5yage = dfmdfpr[dfmdfpr['QAGE_5Y'] == g].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-        countiespr_5yage =  pd.merge(hdfcountiespr_5yage, mdfcountiespr_5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdfcountiespr_5yage = dfhdfpr().filter(pl.col('QAGE_5Y') == g).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+        mdfcountiespr_5yage = dfmdfpr().filter(pl.col('QAGE_5Y') == g).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+        countiespr_5yage =  hdfcountiespr_5yage.join(mdfcountiespr_5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = countiespr_5yage.pipe(calculate_ss, geography="PR County/Municipio", sizecategory = "All", characteristic = "Age {}".format(g))
         outputdflist.append(ss)
     # PR Counties/Municipios Sex x 5-Year Age Groups
     for s in sexcats:
         for g in qage_5y_cats:
-            hdfcountiespr_sex5yage = dfhdfpr[(dfhdfpr['QAGE_5Y'] == g) & (dfhdfpr['QSEX']== s)].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-            mdfcountiespr_sex5yage = dfmdfpr[(dfmdfpr['QAGE_5Y'] == g) & (dfmdfpr['QSEX']== s)].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-            countiespr_sex5yage =  pd.merge(hdfcountiespr_sex5yage, mdfcountiespr_sex5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+            hdfcountiespr_sex5yage = dfhdfpr().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+            mdfcountiespr_sex5yage = dfmdfpr().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+            countiespr_sex5yage =  hdfcountiespr_sex5yage.join(mdfcountiespr_sex5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
             ss = countiespr_sex5yage.pipe(calculate_ss, geography="PR County/Municipio", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
             outputdflist.append(ss)
     # PR Tract Sex and 5-Year Age Groups
     for s in sexcats:
-        hdftractspr_sex = dfhdfpr[(dfhdfpr['QSEX']== s)].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-        mdftractspr_sex = dfmdfpr[(dfmdfpr['QSEX']== s)].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-        tractspr_sex =  pd.merge(hdftractspr_sex, mdftractspr_sex, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdftractspr_sex = dfhdfpr().filter(pl.col('QSEX') == s).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+        mdftractspr_sex = dfmdfpr().filter(pl.col('QSEX') == s).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+        tractspr_sex =  hdftractspr_sex.join(mdftractspr_sex, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = tractspr_sex.pipe(calculate_ss, geography="PR Tract", sizecategory = "All", characteristic = "{sex}".format(sex = sexdict.get(s)))
         outputdflist.append(ss)
     # PR Tract 5-Year Age Groups
     for g in qage_5y_cats:
-        hdftractspr_5yage = dfhdfpr[dfhdfpr['QAGE_5Y'] == g].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-        mdftractspr_5yage = dfmdfpr[dfmdfpr['QAGE_5Y'] == g].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-        tractspr_5yage =  pd.merge(hdftractspr_5yage, mdftractspr_5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdftractspr_5yage = dfhdfpr().filter(pl.col('QAGE_5Y') == g).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+        mdftractspr_5yage = dfmdfpr().filter(pl.col('QAGE_5Y') == g).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+        tractspr_5yage =  hdftractspr_5yage.join(mdftractspr_5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = tractspr_5yage.pipe(calculate_ss, geography="PR Tract", sizecategory = "All", characteristic = "Age {}".format(g))
         outputdflist.append(ss)
     # PR Tract Sex x 5-Year Age Groups
     for s in sexcats:
         for g in qage_5y_cats:
-            hdftractspr_sex5yage = dfhdfpr[(dfhdfpr['QAGE_5Y'] == g) & (dfhdfpr['QSEX']== s)].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-            mdftractspr_sex5yage = dfmdfpr[(dfmdfpr['QAGE_5Y'] == g) & (dfmdfpr['QSEX']== s)].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-            tractspr_sex5yage =  pd.merge(hdftractspr_sex5yage, mdftractspr_sex5yage, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+            hdftractspr_sex5yage = dfhdfpr().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+            mdftractspr_sex5yage = dfmdfpr().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+            tractspr_sex5yage =  hdftractspr_sex5yage.join(mdftractspr_sex5yage, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
             ss = tractspr_sex5yage.pipe(calculate_ss, geography="PR Tract", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
             outputdflist.append(ss)
 
 # Federal AIR Sex and 5-Year Age Groups
 for s in sexcats:
-    hdffedairs_sex = dfhdf[(dfhdf['QSEX']== s)].group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
-    mdffedairs_sex = dfmdf[(dfmdf['QSEX']== s)].group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
-    fedairs_sex =  pd.merge(hdffedairs_sex, mdffedairs_sex, on=['FedAIRGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdffedairs_sex = dfhdf().filter(pl.col('QSEX') == s).group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
+    mdffedairs_sex = dfmdf().filter(pl.col('QSEX') == s).group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
+    fedairs_sex =  hdffedairs_sex.join(mdffedairs_sex, on=['FedAIRGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = fedairs_sex.pipe(calculate_ss, geography="Fed AIR", sizecategory = "All", characteristic = "{sex}".format(sex = sexdict.get(s)))
     outputdflist.append(ss)
 # Federal AIR 5-Year Age Groups
 for g in qage_5y_cats:
-    hdffedairs_5yage = dfhdf[dfhdf['QAGE_5Y'] == g].group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
-    mdffedairs_5yage = dfmdf[dfmdf['QAGE_5Y'] == g].group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
-    fedairs_5yage =  pd.merge(hdffedairs_5yage, mdffedairs_5yage, on=['FedAIRGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdffedairs_5yage = dfhdf().filter(pl.col('QAGE_5Y') == g).group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
+    mdffedairs_5yage = dfmdf().filter(pl.col('QAGE_5Y') == g).group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
+    fedairs_5yage =  hdffedairs_5yage.join(mdffedairs_5yage, on=['FedAIRGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = fedairs_5yage.pipe(calculate_ss, geography="Fed AIR", sizecategory = "All", characteristic = "Age {}".format(g))
     outputdflist.append(ss)
 #    Federal AIR Sex x 5-Year Age Groups
 for s in sexcats:
     for g in qage_5y_cats:
-        hdffedairs_sex5yage = dfhdf[(dfhdf['QAGE_5Y'] == g) & (dfhdf['QSEX']== s)].group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
-        mdffedairs_sex5yage = dfmdf[(dfmdf['QAGE_5Y'] == g) & (dfmdf['QSEX']== s)].group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
-        fedairs_sex5yage =  pd.merge(hdffedairs_sex5yage, mdffedairs_sex5yage, on=['FedAIRGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdffedairs_sex5yage = dfhdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
+        mdffedairs_sex5yage = dfmdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
+        fedairs_sex5yage =  hdffedairs_sex5yage.join(mdffedairs_sex5yage, on=['FedAIRGEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = fedairs_sex5yage.pipe(calculate_ss, geography="Fed AIR", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 
@@ -1338,65 +1319,65 @@ if runAGEBYRACE:
     for r in racealonecats:
         for s in sexcats:
             for g in qage_5y_cats:
-                hdffedairs_sex5yage = dfhdf[(dfhdf['QAGE_5Y'] == g) & (dfhdf['QSEX']== s)&(dfhdf['RACEALONE'] == r)].group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
-                mdffedairs_sex5yage = dfmdf[(dfmdf['QAGE_5Y'] == g) & (dfmdf['QSEX']== s)&(dfmdf['RACEALONE'] == r)].group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
-                fedairs_sex5yage =  pd.merge(hdffedairs_sex5yage, mdffedairs_sex5yage, on=['FedAIRGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+                hdffedairs_sex5yage = dfhdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s)&(pl.col('RACEALONE') == r).group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
+                mdffedairs_sex5yage = dfmdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s)&(pl.col('RACEALONE') == r).group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
+                fedairs_sex5yage =  hdffedairs_sex5yage.join(mdffedairs_sex5yage, on=['FedAIRGEOID'], how="full", coalesce=True).pipe(calculate_stats)
                 ss = fedairs_sex5yage.pipe(calculate_ss, geography="Fed AIR", sizecategory = "All", characteristic = "{race} {sex} Age {agegroup}".format(race = racealonedict.get(r), sex = sexdict.get(s), agegroup = g))
                 outputdflist.append(ss)
     # Fed AIR 5-Year Age Groups by RACE AOIC
     for rg in racegroups:
         for s in sexcats:
             for g in qage_5y_cats:
-                hdffedairs_sex5yage = dfhdf[(dfhdf['QAGE_5Y'] == g) & (dfhdf['QSEX']== s) & (dfhdf[rg]==1)].group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
-                mdffedairs_sex5yage = dfmdf[(dfmdf['QAGE_5Y'] == g) & (dfmdf['QSEX']== s) & (dfmdf[rg]==1)].group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
-                fedairs_sex5yage =  pd.merge(hdffedairs_sex5yage, mdffedairs_sex5yage, on=['FedAIRGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+                hdffedairs_sex5yage = dfhdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s) & (dfhdf[rg]==1).group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
+                mdffedairs_sex5yage = dfmdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s) & (dfmdf[rg]==1).group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
+                fedairs_sex5yage =  hdffedairs_sex5yage.join(mdffedairs_sex5yage, on=['FedAIRGEOID'], how="full", coalesce=True).pipe(calculate_stats)
                 ss = fedairs_sex5yage.pipe(calculate_ss, geography="Fed AIR", sizecategory = "All", characteristic = "{race} {sex} Age {agegroup}".format(race = raceincombdict.get(rg), sex = sexdict.get(s), agegroup = g))
                 outputdflist.append(ss)
 
 
 # OTSA Sex and 5-Year Age Groups
 for s in sexcats:
-    hdfotsas_sex = dfhdf[(dfhdf['QSEX']== s)].group_by(['OTSAGEOID']).agg(HDF_Population = pl.len())
-    mdfotsas_sex = dfmdf[(dfmdf['QSEX']== s)].group_by(['OTSAGEOID']).agg(MDF_Population = pl.len())
-    otsas_sex =  pd.merge(hdfotsas_sex, mdfotsas_sex, on=['OTSAGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfotsas_sex = dfhdf().filter(pl.col('QSEX') == s).group_by(['OTSAGEOID']).agg(HDF_Population = pl.len())
+    mdfotsas_sex = dfmdf().filter(pl.col('QSEX') == s).group_by(['OTSAGEOID']).agg(MDF_Population = pl.len())
+    otsas_sex =  hdfotsas_sex.join(mdfotsas_sex, on=['OTSAGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = otsas_sex.pipe(calculate_ss, geography="OTSA", sizecategory = "All", characteristic = "{sex}".format(sex = sexdict.get(s)))
     outputdflist.append(ss)
 # OTSA 5-Year Age Groups
 for g in qage_5y_cats:
-    hdfotsas_5yage = dfhdf[(dfhdf['QAGE_5Y'] == g)].group_by(['OTSAGEOID']).agg(HDF_Population = pl.len())
-    mdfotsas_5yage = dfmdf[(dfmdf['QAGE_5Y'] == g)].group_by(['OTSAGEOID']).agg(MDF_Population = pl.len())
-    otsas_5yage =  pd.merge(hdfotsas_5yage, mdfotsas_5yage, on=['OTSAGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfotsas_5yage = dfhdf().filter(pl.col('QAGE_5Y') == g).group_by(['OTSAGEOID']).agg(HDF_Population = pl.len())
+    mdfotsas_5yage = dfmdf().filter(pl.col('QAGE_5Y') == g).group_by(['OTSAGEOID']).agg(MDF_Population = pl.len())
+    otsas_5yage =  hdfotsas_5yage.join(mdfotsas_5yage, on=['OTSAGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = otsas_5yage.pipe(calculate_ss, geography="OTSA", sizecategory = "All", characteristic = "Age {}".format(g))
     outputdflist.append(ss)
 # OTSA Sex x 5-Year Age Groups
 for s in sexcats:
     for g in qage_5y_cats:
-        hdfotsas_sex5yage = dfhdf[(dfhdf['QAGE_5Y'] == g) & (dfhdf['QSEX']== s)].group_by(['OTSAGEOID']).agg(HDF_Population = pl.len())
-        mdfotsas_sex5yage = dfmdf[(dfmdf['QAGE_5Y'] == g) & (dfmdf['QSEX']== s)].group_by(['OTSAGEOID']).agg(MDF_Population = pl.len())
-        otsas_sex5yage =  pd.merge(hdfotsas_sex5yage, mdfotsas_sex5yage, on=['OTSAGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdfotsas_sex5yage = dfhdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['OTSAGEOID']).agg(HDF_Population = pl.len())
+        mdfotsas_sex5yage = dfmdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['OTSAGEOID']).agg(MDF_Population = pl.len())
+        otsas_sex5yage =  hdfotsas_sex5yage.join(mdfotsas_sex5yage, on=['OTSAGEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = otsas_sex5yage.pipe(calculate_ss, geography="OTSA", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 
 # ANVSA Sex and 5-Year Age Groups
 for s in sexcats:
-    hdfanvsas_sex = dfhdf[(dfhdf['QSEX']== s)].group_by(['ANVSAGEOID']).agg(HDF_Population = pl.len())
-    mdfanvsas_sex = dfmdf[(dfmdf['QSEX']== s)].group_by(['ANVSAGEOID']).agg(MDF_Population = pl.len())
-    anvsas_sex =  pd.merge(hdfanvsas_sex, mdfanvsas_sex, on=['ANVSAGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfanvsas_sex = dfhdf().filter(pl.col('QSEX') == s).group_by(['ANVSAGEOID']).agg(HDF_Population = pl.len())
+    mdfanvsas_sex = dfmdf().filter(pl.col('QSEX') == s).group_by(['ANVSAGEOID']).agg(MDF_Population = pl.len())
+    anvsas_sex =  hdfanvsas_sex.join(mdfanvsas_sex, on=['ANVSAGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = anvsas_sex.pipe(calculate_ss, geography="ANVSA", sizecategory = "All", characteristic = "{sex}".format(sex = sexdict.get(s)))
     outputdflist.append(ss)
 # ANVSA 5-Year Age Groups
 for g in qage_5y_cats:
-    hdfanvsas_5yage = dfhdf[dfhdf['QAGE_5Y'] == g].group_by(['ANVSAGEOID']).agg(HDF_Population = pl.len())
-    mdfanvsas_5yage = dfmdf[dfmdf['QAGE_5Y'] == g].group_by(['ANVSAGEOID']).agg(MDF_Population = pl.len())
-    anvsas_5yage =  pd.merge(hdfanvsas_5yage, mdfanvsas_5yage, on=['ANVSAGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfanvsas_5yage = dfhdf().filter(pl.col('QAGE_5Y') == g).group_by(['ANVSAGEOID']).agg(HDF_Population = pl.len())
+    mdfanvsas_5yage = dfmdf().filter(pl.col('QAGE_5Y') == g).group_by(['ANVSAGEOID']).agg(MDF_Population = pl.len())
+    anvsas_5yage =  hdfanvsas_5yage.join(mdfanvsas_5yage, on=['ANVSAGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = anvsas_5yage.pipe(calculate_ss, geography="ANVSA", sizecategory = "All", characteristic = "Age {}".format(g))
     outputdflist.append(ss)
 # ANVSA Sex x 5-Year Age Groups
 for s in sexcats:
     for g in qage_5y_cats:
-        hdfanvsas_sex5yage = dfhdf[(dfhdf['QAGE_5Y'] == g) & (dfhdf['QSEX']== s)].group_by(['ANVSAGEOID']).agg(HDF_Population = pl.len())
-        mdfanvsas_sex5yage = dfmdf[(dfmdf['QAGE_5Y'] == g) & (dfmdf['QSEX']== s)].group_by(['ANVSAGEOID']).agg(MDF_Population = pl.len())
-        anvsas_sex5yage =  pd.merge(hdfanvsas_sex5yage, mdfanvsas_sex5yage, on=['ANVSAGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+        hdfanvsas_sex5yage = dfhdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['ANVSAGEOID']).agg(HDF_Population = pl.len())
+        mdfanvsas_sex5yage = dfmdf().filter((pl.col('QAGE_5Y') == g) & (pl.col('QSEX')== s).group_by(['ANVSAGEOID']).agg(MDF_Population = pl.len())
+        anvsas_sex5yage =  hdfanvsas_sex5yage.join(mdfanvsas_sex5yage, on=['ANVSAGEOID'], how="full", coalesce=True).pipe(calculate_stats)
         ss = anvsas_sex5yage.pipe(calculate_ss, geography="ANVSA", sizecategory = "All", characteristic = "{sex} Age {agegroup}".format(sex = sexdict.get(s), agegroup = g))
         outputdflist.append(ss)
 
@@ -1404,78 +1385,78 @@ print("{} Sex By 5 Year Age Groups Done".format(datetime.now()))
 
 # GQ 
 for g in gqinstcats:
-    hdfstates_gqinst = dfhdf[dfhdf['GQINST'] == g].group_by(['TABBLKST']).agg(HDF_Population = pl.len())
-    mdfstates_gqinst = dfmdf[dfmdf['GQINST'] == g].group_by(['TABBLKST']).agg(MDF_Population = pl.len())
-    states_gqinst =  pd.merge(hdfstates_gqinst, mdfstates_gqinst, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfstates_gqinst = dfhdf().filter(pl.col('GQINST') == g).group_by(['TABBLKST']).agg(HDF_Population = pl.len())
+    mdfstates_gqinst = dfmdf().filter(pl.col('GQINST') == g).group_by(['TABBLKST']).agg(MDF_Population = pl.len())
+    states_gqinst =  hdfstates_gqinst.join(mdfstates_gqinst, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = states_gqinst.pipe(calculate_ss, geography="State", sizecategory = "All", characteristic = "GQ {}".format(g))
     outputdflist.append(ss)
 
 for g in gqmajortypecats:
-    hdfstates_gqmajtype = dfhdf[dfhdf['GQMAJORTYPE'] == g].group_by(['TABBLKST']).agg(HDF_Population = pl.len())
-    mdfstates_gqmajtype = dfmdf[dfmdf['GQMAJORTYPE'] == g].group_by(['TABBLKST']).agg(MDF_Population = pl.len())
-    states_gqmajtype =  pd.merge(hdfstates_gqmajtype, mdfstates_gqmajtype, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfstates_gqmajtype = dfhdf().filter(pl.col('GQMAJORTYPE') == g).group_by(['TABBLKST']).agg(HDF_Population = pl.len())
+    mdfstates_gqmajtype = dfmdf().filter(pl.col('GQMAJORTYPE') == g).group_by(['TABBLKST']).agg(MDF_Population = pl.len())
+    states_gqmajtype =  hdfstates_gqmajtype.join(mdfstates_gqmajtype, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = states_gqmajtype.pipe(calculate_ss, geography="State", sizecategory = "All", characteristic = "GQ {}".format(g))
     outputdflist.append(ss)
 
 for g in gqinstcats:
-    hdfcounties_gqinst = dfhdf[dfhdf['GQINST'] == g].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-    mdfcounties_gqinst = dfmdf[dfmdf['GQINST'] == g].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-    counties_gqinst =  pd.merge(hdfcounties_gqinst, mdfcounties_gqinst, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfcounties_gqinst = dfhdf().filter(pl.col('GQINST') == g).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+    mdfcounties_gqinst = dfmdf().filter(pl.col('GQINST') == g).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+    counties_gqinst =  hdfcounties_gqinst.join(mdfcounties_gqinst, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = counties_gqinst.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "GQ {}".format(g))
     outputdflist.append(ss)
-    counties_gqinst = pd.merge(counties_gqinst, dfhdf().group_by('CountyGEOID').size().reset_index(name='HDF_TotalPopulation').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']), on ="GEOID", how="outer",validate=mergeValidation)
-    counties_gqinst['Total_PopSize'] = pd.cut(counties_gqinst['HDF_TotalPopulation'], [0,1000,5000,10000,50000,100000,np.inf], left_closed = True)
+    counties_gqinst = counties_gqinst.join(dfhdf().group_by('CountyGEOID').agg(pl.len().alias('HDF_TotalPopulation')).collect(), on="CountyGEOID", how="full", coalesce=True)
+    counties_gqinst = counties_gqinst.with_columns(pl.col('HDF_TotalPopulation').cut([0,1000,5000,10000,50000,100000], left_closed=True).alias('Total_PopSize'))
     for i in counties_gqinst['Total_PopSize'].cat.get_categories():
-        ss = counties_gqinst[counties_gqinst['Total_PopSize'] == i].pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "GQ {}".format(g))
+        ss = counties_gqinst.filter(pl.col('Total_PopSize') == i).pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "GQ {}".format(g))
         outputdflist.append(ss)
 
 for g in gqmajortypecats:
-    hdfcounties_gqmajtype = dfhdf[dfhdf['GQMAJORTYPE'] == g].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-    mdfcounties_gqmajtype = dfmdf[dfmdf['GQMAJORTYPE'] == g].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-    counties_gqmajtype =  pd.merge(hdfcounties_gqmajtype, mdfcounties_gqmajtype, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfcounties_gqmajtype = dfhdf().filter(pl.col('GQMAJORTYPE') == g).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+    mdfcounties_gqmajtype = dfmdf().filter(pl.col('GQMAJORTYPE') == g).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+    counties_gqmajtype =  hdfcounties_gqmajtype.join(mdfcounties_gqmajtype, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = counties_gqmajtype.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "GQ {}".format(g))
     outputdflist.append(ss)
-    counties_gqmajtype = pd.merge(counties_gqmajtype, dfhdf().group_by('CountyGEOID').size().reset_index(name='HDF_TotalPopulation').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']), on ="GEOID", how="outer",validate=mergeValidation)
-    counties_gqmajtype['Total_PopSize'] = pd.cut(counties_gqmajtype['HDF_TotalPopulation'], [0,1000,5000,10000,50000,100000,np.inf], left_closed = True)
+    counties_gqmajtype = counties_gqmajtype.join(dfhdf().group_by('CountyGEOID').agg(pl.len().alias('HDF_TotalPopulation')).collect(), on="CountyGEOID", how="full", coalesce=True)
+    counties_gqmajtype = counties_gqmajtype.with_columns(pl.col('HDF_TotalPopulation').cut([0,1000,5000,10000,50000,100000], left_closed=True).alias('Total_PopSize'))
     for i in counties_gqmajtype['Total_PopSize'].cat.get_categories():
-        ss = counties_gqmajtype[counties_gqmajtype['Total_PopSize'] == i].pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "GQ {}".format(g))
+        ss = counties_gqmajtype.filter(pl.col('Total_PopSize') == i).pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "GQ {}".format(g))
         outputdflist.append(ss)
 
 for g in gqinstcats:
-    hdfplaces_gqinst = dfhdf[dfhdf['GQINST'] == g].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-    mdfplaces_gqinst = dfmdf[dfmdf['GQINST'] == g].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-    places_gqinst =  pd.merge(hdfplaces_gqinst, mdfplaces_gqinst, on=['IncPlaceGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfplaces_gqinst = dfhdf().filter(pl.col('GQINST') == g).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+    mdfplaces_gqinst = dfmdf().filter(pl.col('GQINST') == g).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+    places_gqinst =  hdfplaces_gqinst.join(mdfplaces_gqinst, on=['IncPlaceGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = places_gqinst.pipe(calculate_ss, geography="Place", sizecategory = "All", characteristic = "GQ {}".format(g))
     outputdflist.append(ss)
-    places_gqinst = pd.merge(places_gqinst, dfhdf().group_by(['IncPlaceGEOID']).size().reset_index(name='HDF_TotalPopulation').set_index(['IncPlaceGEOID']).reindex(allplacesindex, fill_value=0).reset_index(), on ="IncPlaceGEOID", how="outer",validate=mergeValidation)
-    places_gqinst['Total_PopSize'] = pd.cut(places_gqinst['HDF_TotalPopulation'], [0,500,1000,5000,10000,50000,100000,np.inf], left_closed = True)
+    places_gqinst = places_gqinst.join(dfhdf().group_by('IncPlaceGEOID').agg(pl.len().alias('HDF_TotalPopulation')).join(pl.DataFrame({'IncPlaceGEOID': allplacesindex}), on='IncPlaceGEOID', how='right', coalesce=True).fill_null(0), on="IncPlaceGEOID", how="full", coalesce=True)
+    places_gqinst = places_gqinst.with_columns(pl.col('HDF_TotalPopulation').cut([0,500,1000,5000,10000,50000,100000], left_closed=True).alias('Total_PopSize'))
     for i in places_gqinst['Total_PopSize'].cat.get_categories():
-        ss = places_gqinst[places_gqinst['Total_PopSize'] == i].pipe(calculate_ss, geography="Place", sizecategory = str(i), characteristic = "GQ {}".format(g))
+        ss = places_gqinst.filter(pl.col('Total_PopSize') == i).pipe(calculate_ss, geography="Place", sizecategory = str(i), characteristic = "GQ {}".format(g))
         outputdflist.append(ss)
 
 for g in gqmajortypecats:
-    hdfplaces_gqmajtype = dfhdf[dfhdf['GQMAJORTYPE'] == g].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-    mdfplaces_gqmajtype = dfmdf[dfmdf['GQMAJORTYPE'] == g].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-    places_gqmajtype =  pd.merge(hdfplaces_gqmajtype, mdfplaces_gqmajtype, on=['IncPlaceGEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfplaces_gqmajtype = dfhdf().filter(pl.col('GQMAJORTYPE') == g).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+    mdfplaces_gqmajtype = dfmdf().filter(pl.col('GQMAJORTYPE') == g).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+    places_gqmajtype =  hdfplaces_gqmajtype.join(mdfplaces_gqmajtype, on=['IncPlaceGEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = places_gqmajtype.pipe(calculate_ss, geography="Place", sizecategory = "All", characteristic = "GQ {}".format(g))
     outputdflist.append(ss)
-    places_gqmajtype = pd.merge(places_gqmajtype, dfhdf().group_by(['IncPlaceGEOID']).size().reset_index(name='HDF_TotalPopulation').set_index(['IncPlaceGEOID']).reindex(allplacesindex, fill_value=0).reset_index(), on ="IncPlaceGEOID", how="outer",validate=mergeValidation)
-    places_gqmajtype['Total_PopSize'] = pd.cut(places_gqmajtype['HDF_TotalPopulation'], [0,500,1000,5000,10000,50000,100000,np.inf], left_closed = True)
+    places_gqmajtype = places_gqmajtype.join(dfhdf().group_by('IncPlaceGEOID').agg(pl.len().alias('HDF_TotalPopulation')).join(pl.DataFrame({'IncPlaceGEOID': allplacesindex}), on='IncPlaceGEOID', how='right', coalesce=True).fill_null(0), on="IncPlaceGEOID", how="full", coalesce=True)
+    places_gqmajtype = places_gqmajtype.with_columns(pl.col('HDF_TotalPopulation').cut([0,500,1000,5000,10000,50000,100000], left_closed=True).alias('Total_PopSize'))
     for i in places_gqmajtype['Total_PopSize'].cat.get_categories():
-        ss = places_gqmajtype[places_gqmajtype['Total_PopSize'] == i].pipe(calculate_ss, geography="Place", sizecategory = str(i), characteristic = "GQ {}".format(g))
+        ss = places_gqmajtype.filter(pl.col('Total_PopSize') == i).pipe(calculate_ss, geography="Place", sizecategory = str(i), characteristic = "GQ {}".format(g))
         outputdflist.append(ss)
 
 for g in gqinstcats:
-    hdftracts_gqinst = dfhdf[dfhdf['GQINST'] == g].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-    mdftracts_gqinst = dfmdf[dfmdf['GQINST'] == g].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-    tracts_gqinst =  pd.merge(hdftracts_gqinst, mdftracts_gqinst, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdftracts_gqinst = dfhdf().filter(pl.col('GQINST') == g).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+    mdftracts_gqinst = dfmdf().filter(pl.col('GQINST') == g).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+    tracts_gqinst =  hdftracts_gqinst.join(mdftracts_gqinst, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = tracts_gqinst.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "GQ {}".format(g))
     outputdflist.append(ss)
 
 for g in gqmajortypecats:
-    hdftracts_gqmajtype = dfhdf[dfhdf['GQMAJORTYPE'] == g].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-    mdftracts_gqmajtype = dfmdf[dfmdf['GQMAJORTYPE'] == g].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-    tracts_gqmajtype =  pd.merge(hdftracts_gqmajtype, mdftracts_gqmajtype, on=['GEOID'], how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdftracts_gqmajtype = dfhdf().filter(pl.col('GQMAJORTYPE') == g).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+    mdftracts_gqmajtype = dfmdf().filter(pl.col('GQMAJORTYPE') == g).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+    tracts_gqmajtype =  hdftracts_gqmajtype.join(mdftracts_gqmajtype, on=['GEOID'], how="full", coalesce=True).pipe(calculate_stats)
     ss = tracts_gqmajtype.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "GQ {}".format(g))
     outputdflist.append(ss)
 
@@ -1484,58 +1465,58 @@ print("{} GQ Types Done".format(datetime.now()))
 
 
 # Counties Absolute Change in Median Age/Sex Ratio 
-hdfcounties_medage = dfhdf().group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_MedianAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index(['GEOID']).reindex(allcountiesindex, fill_value=0).reset_index()
-mdfcounties_medage = dfmdf().group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_MedianAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index(['GEOID']).reindex(allcountiesindex, fill_value=0).reset_index()
-counties_medage =  pd.merge(hdfcounties_medage, mdfcounties_medage, on='GEOID', how = 'outer', validate = mergeValidation)
-counties_medage  = counties_medage.assign(AbsDiffMedAge = lambda x: np.abs(x['HDF_MedianAge'] - x['MDF_MedianAge']))
-counties_medage.to_csv(f"{OUTPUTDIR}/counties_medage.csv", index=False)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'Average Absolute Change in Median Age','NumCells':len(counties_medage),'AvgAbsDiffMedAge': np.nanmean(counties_medage['AbsDiffMedAge'])}, index=[0])
+hdfcounties_medage = dfhdf().group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_MedianAge')).collect().join(pl.DataFrame({'GEOID': allcountiesindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdfcounties_medage = dfmdf().group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_MedianAge')).collect().join(pl.DataFrame({'GEOID': allcountiesindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+counties_medage =  hdfcounties_medage.join(mdfcounties_medage, on='CountyGEOID', how='full', coalesce=True)
+counties_medage = counties_medage.with_columns((pl.col('HDF_MedianAge') - pl.col('MDF_MedianAge')).abs().alias('AbsDiffMedAge'))
+counties_medage.write_csv(f"{OUTPUTDIR}/counties_medage.csv")
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'Average Absolute Change in Median Age','NumCells':len(counties_medage),'AvgAbsDiffMedAge': counties_medage['AbsDiffMedAge'].drop_nulls().mean()})
 outputdflist.append(ss)
-counties_medage = pd.merge(counties_medage, dfhdf().group_by('CountyGEOID').size().reset_index(name='HDF_TotalPopulation').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']), on ="GEOID", how="outer",validate=mergeValidation)
-counties_medage['Total_PopSize'] = pd.cut(counties_medage['HDF_TotalPopulation'], [0,1000,5000,10000,50000,100000,np.inf], left_closed = True)
+counties_medage = counties_medage.join(dfhdf().group_by('CountyGEOID').agg(pl.len().alias('HDF_TotalPopulation')).collect(), on="CountyGEOID", how="full", coalesce=True)
+counties_medage = counties_medage.with_columns(pl.col('HDF_TotalPopulation').cut([0,1000,5000,10000,50000,100000], left_closed=True).alias('Total_PopSize'))
 for i in counties_medage['Total_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':str(i), 'Characteristic':'Average Absolute Change in Median Age','NumCells':len(counties_medage[counties_medage['Total_PopSize'] == i]),'AvgAbsDiffMedAge': np.nanmean(counties_medage.loc[counties_medage['Total_PopSize'] == i,'AbsDiffMedAge'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':str(i), 'Characteristic':'Average Absolute Change in Median Age','NumCells':len(counties_medage.filter(pl.col('Total_PopSize') == i)),'AvgAbsDiffMedAge': counties_medage.filter(pl.col('Total_PopSize') == i).get_column('AbsDiffMedAge').drop_nulls().mean()})
     outputdflist.append(ss)
 
-hdfcounties_sexratio = dfhdf().group_by(['TABBLKST', 'TABBLKCOU', 'QSEX']).size().unstack().fillna(0).reset_index().assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index(['GEOID']).reindex(allcountiesindex, fill_value=0).reset_index().assign(HDF_SexRatio = lambda x: 100*x['1']/x['2']).drop(columns=['1','2'])
-mdfcounties_sexratio = dfmdf().group_by(['TABBLKST', 'TABBLKCOU', 'QSEX']).size().unstack().fillna(0).reset_index().assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index(['GEOID']).reindex(allcountiesindex, fill_value=0).reset_index().assign(MDF_SexRatio = lambda x: 100*x['1']/x['2']).drop(columns=['1','2'])
-counties_sexratio =  pd.merge(hdfcounties_sexratio, mdfcounties_sexratio, on='GEOID', how = 'outer', validate = mergeValidation)
-counties_sexratio  = counties_sexratio.assign(AbsDiffSexRatio = lambda x: np.abs(x['HDF_SexRatio'] - x['MDF_SexRatio']))
-counties_sexratio.to_csv(f"{OUTPUTDIR}/counties_sexratio.csv", index=False)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'Average Absolute Change in Sex Ratio','NumCells':len(counties_sexratio),'AvgAbsDiffSexRatio': np.nanmean(counties_sexratio['AbsDiffSexRatio'])}, index=[0])
+hdfcounties_sexratio = dfhdf().group_by(['CountyGEOID', 'QSEX']).agg(pl.len().alias('count')).collect().pivot(on='QSEX', index='CountyGEOID', values='count').fill_null(0).join(pl.DataFrame({'CountyGEOID': allcountiesindex}), on='CountyGEOID', how='right', coalesce=True).fill_null(0).with_columns((100 * pl.col('1') / pl.col('2')).alias('HDF_SexRatio')).drop(['1', '2'])
+mdfcounties_sexratio = dfmdf().group_by(['CountyGEOID', 'QSEX']).agg(pl.len().alias('count')).collect().pivot(on='QSEX', index='CountyGEOID', values='count').fill_null(0).join(pl.DataFrame({'CountyGEOID': allcountiesindex}), on='CountyGEOID', how='right', coalesce=True).fill_null(0).with_columns((100 * pl.col('1') / pl.col('2')).alias('MDF_SexRatio')).drop(['1', '2'])
+counties_sexratio =  hdfcounties_sexratio.join(mdfcounties_sexratio, on='CountyGEOID', how='full', coalesce=True)
+counties_sexratio = counties_sexratio.with_columns((pl.col('HDF_SexRatio') - pl.col('MDF_SexRatio')).abs().alias('AbsDiffSexRatio'))
+counties_sexratio.write_csv(f"{OUTPUTDIR}/counties_sexratio.csv")
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'Average Absolute Change in Sex Ratio','NumCells':len(counties_sexratio),'AvgAbsDiffSexRatio': counties_sexratio['AbsDiffSexRatio'].drop_nulls().mean()})
 outputdflist.append(ss)
-counties_sexratio = pd.merge(counties_sexratio, dfhdf().group_by('CountyGEOID').size().reset_index(name='HDF_TotalPopulation').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']), on ="GEOID", how="outer",validate=mergeValidation)
-counties_sexratio['Total_PopSize'] = pd.cut(counties_sexratio['HDF_TotalPopulation'], [0,1000,5000,10000,50000,100000,np.inf], left_closed = True)
+counties_sexratio = counties_sexratio.join(dfhdf().group_by('CountyGEOID').agg(pl.len().alias('HDF_TotalPopulation')).collect(), on="CountyGEOID", how="full", coalesce=True)
+counties_sexratio = counties_sexratio.with_columns(pl.col('HDF_TotalPopulation').cut([0,1000,5000,10000,50000,100000], left_closed=True).alias('Total_PopSize'))
 for i in counties_sexratio['Total_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':str(i), 'Characteristic':'Average Absolute Change in Sex Ratio','NumCells':len(counties_sexratio[counties_sexratio['Total_PopSize'] == i]),'AvgAbsDiffSexRatio': np.nanmean(counties_sexratio.loc[counties_sexratio['Total_PopSize'] == i,'AbsDiffSexRatio'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':str(i), 'Characteristic':'Average Absolute Change in Sex Ratio','NumCells':len(counties_sexratio.filter(pl.col('Total_PopSize') == i)),'AvgAbsDiffSexRatio': counties_sexratio.filter(pl.col('Total_PopSize') == i).get_column('AbsDiffSexRatio').drop_nulls().mean()})
     outputdflist.append(ss)
 
 
 # Counties GQ Absolute Change in Median Age/Sex Ratio 
-hdfcountiesgq_medage = dfhdf[dfhdf['GQTYPE'] > 0].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_MedianAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index(['GEOID']).reindex(allcountiesindex, fill_value=0).reset_index()
-mdfcountiesgq_medage = dfmdf[dfmdf['GQTYPE'] > 0].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_MedianAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index(['GEOID']).reindex(allcountiesindex, fill_value=0).reset_index()
-countiesgq_medage =  pd.merge(hdfcountiesgq_medage, mdfcountiesgq_medage, on='GEOID', how = 'outer', validate = mergeValidation)
-countiesgq_medage  = countiesgq_medage.assign(AbsDiffMedAge = lambda x: np.abs(x['HDF_MedianAge'] - x['MDF_MedianAge']))
-countiesgq_medage.to_csv(f"{OUTPUTDIR}/countiesgq_medage.csv", index=False)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'Average Absolute Change in Median Age of GQ Population','NumCells':len(countiesgq_medage),'AvgAbsDiffMedAge': np.nanmean(countiesgq_medage['AbsDiffMedAge'])}, index=[0])
+hdfcountiesgq_medage = dfhdf().filter(pl.col('GQTYPE') > 0).group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_MedianAge')).collect().join(pl.DataFrame({'GEOID': allcountiesindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdfcountiesgq_medage = dfmdf().filter(pl.col('GQTYPE') > 0).group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_MedianAge')).collect().join(pl.DataFrame({'GEOID': allcountiesindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+countiesgq_medage =  hdfcountiesgq_medage.join(mdfcountiesgq_medage, on='CountyGEOID', how='full', coalesce=True)
+countiesgq_medage = countiesgq_medage.with_columns((pl.col('HDF_MedianAge') - pl.col('MDF_MedianAge')).abs().alias('AbsDiffMedAge'))
+countiesgq_medage.write_csv(f"{OUTPUTDIR}/countiesgq_medage.csv")
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'Average Absolute Change in Median Age of GQ Population','NumCells':len(countiesgq_medage),'AvgAbsDiffMedAge': countiesgq_medage['AbsDiffMedAge'].drop_nulls().mean()})
 outputdflist.append(ss)
-countiesgq_medage = pd.merge(countiesgq_medage, dfhdf().group_by('CountyGEOID').size().reset_index(name='HDF_TotalPopulation').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']), on ="GEOID", how="outer",validate=mergeValidation)
-countiesgq_medage['Total_PopSize'] = pd.cut(countiesgq_medage['HDF_TotalPopulation'], [0,1000,5000,10000,50000,100000,np.inf], left_closed = True)
+countiesgq_medage = countiesgq_medage.join(dfhdf().group_by('CountyGEOID').agg(pl.len().alias('HDF_TotalPopulation')).collect(), on="CountyGEOID", how="full", coalesce=True)
+countiesgq_medage = countiesgq_medage.with_columns(pl.col('HDF_TotalPopulation').cut([0,1000,5000,10000,50000,100000], left_closed=True).alias('Total_PopSize'))
 for i in countiesgq_medage['Total_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':str(i), 'Characteristic':'Average Absolute Change in Median Age of GQ Population','NumCells':len(countiesgq_medage[countiesgq_medage['Total_PopSize'] == i]),'AvgAbsDiffMedAge': np.nanmean(countiesgq_medage.loc[countiesgq_medage['Total_PopSize'] == i,'AbsDiffMedAge'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':str(i), 'Characteristic':'Average Absolute Change in Median Age of GQ Population','NumCells':len(countiesgq_medage.filter(pl.col('Total_PopSize') == i)),'AvgAbsDiffMedAge': countiesgq_medage.filter(pl.col('Total_PopSize') == i).get_column('AbsDiffMedAge').drop_nulls().mean()})
     outputdflist.append(ss)
 
-hdfcountiesgq_sexratio = dfhdf[dfhdf['GQTYPE'] > 0].group_by(['TABBLKST', 'TABBLKCOU', 'QSEX']).size().unstack().fillna(0).reset_index().assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index(['GEOID']).reindex(allcountiesindex, fill_value=0).reset_index().assign(HDF_SexRatio = lambda x: 100*x['1']/x['2']).drop(columns=['1','2'])
-mdfcountiesgq_sexratio = dfmdf[dfmdf['GQTYPE'] > 0].group_by(['TABBLKST', 'TABBLKCOU', 'QSEX']).size().unstack().fillna(0).reset_index().assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index(['GEOID']).reindex(allcountiesindex, fill_value=0).reset_index().assign(MDF_SexRatio = lambda x: 100*x['1']/x['2']).drop(columns=['1','2'])
-countiesgq_sexratio =  pd.merge(hdfcountiesgq_sexratio, mdfcountiesgq_sexratio, on='GEOID', how = 'outer', validate = mergeValidation)
-countiesgq_sexratio  = countiesgq_sexratio.assign(AbsDiffSexRatio = lambda x: np.abs(x['HDF_SexRatio'] - x['MDF_SexRatio']))
-countiesgq_sexratio.to_csv(f"{OUTPUTDIR}/countiesgq_sexratio.csv", index=False)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'Average Absolute Change in Sex Ratio of GQ Population','NumCells':len(countiesgq_sexratio),'AvgAbsDiffSexRatio': np.nanmean(countiesgq_sexratio['AbsDiffSexRatio'])}, index=[0])
+hdfcountiesgq_sexratio = dfhdf().filter(pl.col('GQTYPE') > 0).group_by(['CountyGEOID', 'QSEX']).agg(pl.len().alias('count')).collect().pivot(on='QSEX', index='CountyGEOID', values='count').fill_null(0).join(pl.DataFrame({'CountyGEOID': allcountiesindex}), on='CountyGEOID', how='right', coalesce=True).fill_null(0).with_columns((100 * pl.col('1') / pl.col('2')).alias('HDF_SexRatio')).drop(['1', '2'])
+mdfcountiesgq_sexratio = dfmdf().filter(pl.col('GQTYPE') > 0).group_by(['CountyGEOID', 'QSEX']).agg(pl.len().alias('count')).collect().pivot(on='QSEX', index='CountyGEOID', values='count').fill_null(0).join(pl.DataFrame({'CountyGEOID': allcountiesindex}), on='CountyGEOID', how='right', coalesce=True).fill_null(0).with_columns((100 * pl.col('1') / pl.col('2')).alias('MDF_SexRatio')).drop(['1', '2'])
+countiesgq_sexratio =  hdfcountiesgq_sexratio.join(mdfcountiesgq_sexratio, on='CountyGEOID', how='full', coalesce=True)
+countiesgq_sexratio = countiesgq_sexratio.with_columns((pl.col('HDF_SexRatio') - pl.col('MDF_SexRatio')).abs().alias('AbsDiffSexRatio'))
+countiesgq_sexratio.write_csv(f"{OUTPUTDIR}/countiesgq_sexratio.csv")
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'Average Absolute Change in Sex Ratio of GQ Population','NumCells':len(countiesgq_sexratio),'AvgAbsDiffSexRatio': countiesgq_sexratio['AbsDiffSexRatio'].drop_nulls().mean()})
 outputdflist.append(ss)
-countiesgq_sexratio = pd.merge(countiesgq_sexratio, dfhdf().group_by('CountyGEOID').size().reset_index(name='HDF_TotalPopulation').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']), on ="GEOID", how="outer",validate=mergeValidation)
-countiesgq_sexratio['Total_PopSize'] = pd.cut(countiesgq_sexratio['HDF_TotalPopulation'], [0,1000,5000,10000,50000,100000,np.inf], left_closed = True)
+countiesgq_sexratio = countiesgq_sexratio.join(dfhdf().group_by('CountyGEOID').agg(pl.len().alias('HDF_TotalPopulation')).collect(), on="CountyGEOID", how="full", coalesce=True)
+countiesgq_sexratio = countiesgq_sexratio.with_columns(pl.col('HDF_TotalPopulation').cut([0,1000,5000,10000,50000,100000], left_closed=True).alias('Total_PopSize'))
 for i in countiesgq_sexratio['Total_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':str(i), 'Characteristic':'Average Absolute Change in Sex Ratio of GQ Population','NumCells':len(countiesgq_sexratio[countiesgq_sexratio['Total_PopSize'] == i]),'AvgAbsDiffSexRatio': np.nanmean(countiesgq_sexratio.loc[countiesgq_sexratio['Total_PopSize'] == i,'AbsDiffSexRatio'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':str(i), 'Characteristic':'Average Absolute Change in Sex Ratio of GQ Population','NumCells':len(countiesgq_sexratio.filter(pl.col('Total_PopSize') == i)),'AvgAbsDiffSexRatio': countiesgq_sexratio.filter(pl.col('Total_PopSize') == i).get_column('AbsDiffSexRatio').drop_nulls().mean()})
     outputdflist.append(ss)
 
 print("{} Average Absolute Change in Median Age and Sex Ratio Done".format(datetime.now()))
@@ -1544,101 +1525,101 @@ print("{} Average Absolute Change in Median Age and Sex Ratio Done".format(datet
 print("{} Starting Use Cases".format(datetime.now()))
 
 # Tracts Aged 75+
-hdftracts_over75 = dfhdf[dfhdf['QAGE']>= 75].group_by('TractGEOID').agg(HDF_Population = pl.len())
-mdftracts_over75 = dfmdf[dfmdf['QAGE']>= 75].group_by('TractGEOID').agg(MDF_Population = pl.len())
-tracts_over75 =  pd.merge(hdftracts_over75, mdftracts_over75, on='GEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+hdftracts_over75 = dfhdf().filter(pl.col('QAGE') >= 75).group_by('TractGEOID').agg(HDF_Population = pl.len())
+mdftracts_over75 = dfmdf().filter(pl.col('QAGE') >= 75).group_by('TractGEOID').agg(MDF_Population = pl.len())
+tracts_over75 =  hdftracts_over75.join(mdftracts_over75, on='GEOID', how="full", coalesce=True).pipe(calculate_stats)
 ss = tracts_over75.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "Aged 75 and Over")
 outputdflist.append(ss)
 
 # Counties and Places By State TAES
 for s in allstates:
-    dfhdfstate = dfhdf[dfhdf['TABBLKST'] == s]
-    dfmdfstate = dfmdf[dfmdf['TABBLKST'] == s]
+    dfhdfstate = dfhdf().filter(pl.col('TABBLKST') == s)
+    dfmdfstate = dfmdf().filter(pl.col('TABBLKST') == s)
     hdfcounties_taes = dfhdfstate.group_by('CountyGEOID').agg(HDF_Population = pl.len())
     mdfcounties_taes = dfmdfstate.group_by('CountyGEOID').agg(MDF_Population = pl.len())
     hdfsize = len(dfhdfstate)
     mdfsize = len(dfmdfstate)
-    counties_taes =  pd.merge(hdfcounties_taes, mdfcounties_taes, on='GEOID', how = 'outer', validate = mergeValidation)
-    counties_taes = counties_taes.fillna({'HDF_Population': 0, 'MDF_Population': 0})
-    counties_taes  = counties_taes.assign(AES = lambda x: np.abs(x['HDF_Population']/hdfsize - x['MDF_Population']/mdfsize))
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'TAES Total Population {}'.format(statedict.get(s)),'NumCells':len(counties_taes),'TAES': np.sum(counties_taes['AES'])}, index=[0])
+    counties_taes =  hdfcounties_taes.join(mdfcounties_taes, on='GEOID', how="full", coalesce=True)
+    counties_taes = counties_taes.with_columns(pl.col('HDF_Population').fill_null(0), pl.col('MDF_Population').fill_null(0))
+    counties_taes  = counties_taes.with_columns(((pl.col('HDF_Population')/hdfsize - pl.col('MDF_Population')/mdfsize).abs()).alias('AES'))
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'TAES Total Population {}'.format(statedict.get(s)),'NumCells':len(counties_taes),'TAES': counties_taes['AES'].sum()})
     outputdflist.append(ss)
     if s == "15":
-        ss = pd.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'TAES Total Population {}'.format(statedict.get(s)),'NumCells':0,'TAES': 0}, index=[0])
+        ss = pl.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'TAES Total Population {}'.format(statedict.get(s)),'NumCells':0,'TAES': 0})
         outputdflist.append(ss)
     else:
         hdfplaces_taes = dfhdfstate.group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
         mdfplaces_taes = dfmdfstate.group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-        places_taes =  pd.merge(hdfplaces_taes, mdfplaces_taes, on='IncPlaceGEOID', how = 'outer', validate = mergeValidation)
-        places_taes = places_taes.fillna({'HDF_Population': 0, 'MDF_Population': 0})
-        places_taes  = places_taes.assign(AES = lambda x: np.abs(x['HDF_Population']/hdfsize - x['MDF_Population']/mdfsize))
-        ss = pd.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'TAES Total Population {}'.format(statedict.get(s)),'NumCells':len(places_taes),'TAES': np.sum(places_taes['AES'])}, index=[0])
+        places_taes =  hdfplaces_taes.join(mdfplaces_taes, on='IncPlaceGEOID', how="full", coalesce=True)
+        places_taes = places_taes.with_columns(pl.col('HDF_Population').fill_null(0), pl.col('MDF_Population').fill_null(0))
+        places_taes  = places_taes.with_columns(((pl.col('HDF_Population')/hdfsize - pl.col('MDF_Population')/mdfsize).abs()).alias('AES'))
+        ss = pl.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'TAES Total Population {}'.format(statedict.get(s)),'NumCells':len(places_taes),'TAES': places_taes['AES'].sum()})
         outputdflist.append(ss)
 
 # MCDs By State TAES
 for s in mcdstates:
-    dfhdfstate = dfhdf[dfhdf['TABBLKST'] == s]
-    dfmdfstate = dfmdf[dfmdf['TABBLKST'] == s]
+    dfhdfstate = dfhdf().filter(pl.col('TABBLKST') == s)
+    dfmdfstate = dfmdf().filter(pl.col('TABBLKST') == s)
     hdfmcds_taes = dfhdfstate.group_by(['MCDGEOID']).agg(HDF_Population = pl.len())
     mdfmcds_taes = dfmdfstate.group_by(['MCDGEOID']).agg(MDF_Population = pl.len())
     hdfsize = len(dfhdfstate)
     mdfsize = len(dfmdfstate)
-    mcds_taes =  pd.merge(hdfmcds_taes, mdfmcds_taes, on='MCDGEOID', how = 'outer', validate = mergeValidation)
-    mcds_taes = mcds_taes.fillna({'HDF_Population': 0, 'MDF_Population': 0})
-    mcds_taes  = mcds_taes.assign(AES = lambda x: np.abs(x['HDF_Population']/hdfsize - x['MDF_Population']/mdfsize))
-    ss = pd.DataFrame({'Geography':'MCD', 'Size_Category':'All', 'Characteristic':'TAES Total Population {}'.format(statedict.get(s)),'NumCells':len(mcds_taes),'TAES': np.sum(mcds_taes['AES'])}, index=[0])
+    mcds_taes =  hdfmcds_taes.join(mdfmcds_taes, on='MCDGEOID', how="full", coalesce=True)
+    mcds_taes = mcds_taes.with_columns(pl.col('HDF_Population').fill_null(0), pl.col('MDF_Population').fill_null(0))
+    mcds_taes  = mcds_taes.with_columns(((pl.col('HDF_Population')/hdfsize - pl.col('MDF_Population')/mdfsize).abs()).alias('AES'))
+    ss = pl.DataFrame({'Geography':'MCD', 'Size_Category':'All', 'Characteristic':'TAES Total Population {}'.format(statedict.get(s)),'NumCells':len(mcds_taes),'TAES': mcds_taes['AES'].sum()})
     outputdflist.append(ss)
 
 # Counties Single Year of Age < 18  
 for y in list(range(0,18)):
-    hdfcounties_age = dfhdf[dfhdf['QAGE'] == y].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-    mdfcounties_age = dfmdf[dfmdf['QAGE'] == y].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-    counties_age =  pd.merge(hdfcounties_age, mdfcounties_age, on='GEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfcounties_age = dfhdf().filter(pl.col('QAGE') == y).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+    mdfcounties_age = dfmdf().filter(pl.col('QAGE') == y).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+    counties_age =  hdfcounties_age.join(mdfcounties_age, on='GEOID', how="full", coalesce=True).pipe(calculate_stats)
     ss = counties_age.pipe(calculate_ss, geography="County", sizecategory = "All", characteristic = "Age {}".format(y))
     outputdflist.append(ss)
-    counties_age = pd.merge(counties_age, dfhdf[dfhdf['QAGE'] < 18].group_by('CountyGEOID').size().reset_index(name='HDF_PopulationUnder18').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']), on="GEOID", how="outer", validate=mergeValidation)
-    counties_age['Under18_PopSize'] = pd.cut(counties_age['HDF_PopulationUnder18'], [0,1000,10000,np.inf], left_closed = True)
+    counties_age = counties_age.join(dfhdf().filter(pl.col('QAGE') < 18).group_by('CountyGEOID').agg(pl.len().alias('HDF_PopulationUnder18')), on="GEOID", how="full", coalesce=True)
+    counties_age = counties_age.with_columns(pl.col('HDF_PopulationUnder18').cut([0,1000,10000], left_closed=True).alias('Under18_PopSize'))
     for i in counties_age['Under18_PopSize'].cat.get_categories():
-        ss = counties_age[counties_age['Under18_PopSize'] == i].pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "Age {}".format(y))
+        ss = counties_age.filter(pl.col('Under18_PopSize') == i).pipe(calculate_ss, geography="County", sizecategory = str(i), characteristic = "Age {}".format(y))
         outputdflist.append(ss)
 
 # Elem School Districts Single Year of Age < 18  
 for y in list(range(0,18)):
-    hdfelemschdists_age = dfhdf[dfhdf['QAGE'] == y].group_by(['SchDistEGEOID']).agg(HDF_Population = pl.len())
-    mdfelemschdists_age = dfmdf[dfmdf['QAGE'] == y].group_by(['SchDistEGEOID']).agg(MDF_Population = pl.len())
-    elemschdists_age =  pd.merge(hdfelemschdists_age, mdfelemschdists_age, on='SchDistEGEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfelemschdists_age = dfhdf().filter(pl.col('QAGE') == y).group_by(['SchDistEGEOID']).agg(HDF_Population = pl.len())
+    mdfelemschdists_age = dfmdf().filter(pl.col('QAGE') == y).group_by(['SchDistEGEOID']).agg(MDF_Population = pl.len())
+    elemschdists_age =  hdfelemschdists_age.join(mdfelemschdists_age, on='SchDistEGEOID', how="full", coalesce=True).pipe(calculate_stats)
     ss = elemschdists_age.pipe(calculate_ss, geography="ESD", sizecategory = "All", characteristic = "Age {}".format(y))
     outputdflist.append(ss)
-    elemschdists_age = pd.merge(elemschdists_age, dfhdf[dfhdf['QAGE'] < 18].group_by(['SchDistEGEOID']).size().reset_index(name='HDF_PopulationUnder18').set_index('SchDistEGEOID').reindex(allelemschdistsindex, fill_value=0).reset_index(), on="SchDistEGEOID", how="outer", validate=mergeValidation)
-    elemschdists_age['Under18_PopSize'] = pd.cut(elemschdists_age['HDF_PopulationUnder18'], [0,1000,10000,np.inf], left_closed = True)
+    elemschdists_age = elemschdists_age.join(dfhdf().filter(pl.col('QAGE') < 18).group_by('SchDistEGEOID').agg(pl.len().alias('HDF_PopulationUnder18')).collect().join(pl.DataFrame({'SchDistEGEOID': allelemschdistsindex}), on='SchDistEGEOID', how='right', coalesce=True).fill_null(0), on="SchDistEGEOID", how="full", coalesce=True)
+    elemschdists_age = elemschdists_age.with_columns(pl.col('HDF_PopulationUnder18').cut([0,1000,10000], left_closed=True).alias('Under18_PopSize'))
     for i in elemschdists_age['Under18_PopSize'].cat.get_categories():
-        ss = elemschdists_age[elemschdists_age['Under18_PopSize'] == i].pipe(calculate_ss, geography="ESD", sizecategory = str(i), characteristic = "Age {}".format(y))
+        ss = elemschdists_age.filter(pl.col('Under18_PopSize') == i).pipe(calculate_ss, geography="ESD", sizecategory = str(i), characteristic = "Age {}".format(y))
         outputdflist.append(ss)
 
 # Sec School Districts Single Year of Age < 18  
 for y in list(range(0,18)):
-    hdfsecschdists_age = dfhdf[dfhdf['QAGE'] == y].group_by(['SchDistSGEOID']).agg(HDF_Population = pl.len())
-    mdfsecschdists_age = dfmdf[dfmdf['QAGE'] == y].group_by(['SchDistSGEOID']).agg(MDF_Population = pl.len())
-    secschdists_age =  pd.merge(hdfsecschdists_age, mdfsecschdists_age, on='SchDistSGEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfsecschdists_age = dfhdf().filter(pl.col('QAGE') == y).group_by(['SchDistSGEOID']).agg(HDF_Population = pl.len())
+    mdfsecschdists_age = dfmdf().filter(pl.col('QAGE') == y).group_by(['SchDistSGEOID']).agg(MDF_Population = pl.len())
+    secschdists_age =  hdfsecschdists_age.join(mdfsecschdists_age, on='SchDistSGEOID', how="full", coalesce=True).pipe(calculate_stats)
     ss = secschdists_age.pipe(calculate_ss, geography="SSD", sizecategory = "All", characteristic = "Age {}".format(y))
     outputdflist.append(ss)
-    secschdists_age = pd.merge(secschdists_age, dfhdf[dfhdf['QAGE'] < 18].group_by(['SchDistSGEOID']).size().reset_index(name='HDF_PopulationUnder18').set_index('SchDistSGEOID').reindex(allsecschdistsindex, fill_value=0).reset_index(), on="SchDistSGEOID", how="outer", validate=mergeValidation)
-    secschdists_age['Under18_PopSize'] = pd.cut(secschdists_age['HDF_PopulationUnder18'], [0,1000,10000,np.inf], left_closed = True)
+    secschdists_age = secschdists_age.join(dfhdf().filter(pl.col('QAGE') < 18).group_by('SchDistSGEOID').agg(pl.len().alias('HDF_PopulationUnder18')).collect().join(pl.DataFrame({'SchDistSGEOID': allsecschdistsindex}), on='SchDistSGEOID', how='right', coalesce=True).fill_null(0), on="SchDistSGEOID", how="full", coalesce=True)
+    secschdists_age = secschdists_age.with_columns(pl.col('HDF_PopulationUnder18').cut([0,1000,10000], left_closed=True).alias('Under18_PopSize'))
     for i in secschdists_age['Under18_PopSize'].cat.get_categories():
-        ss = secschdists_age[secschdists_age['Under18_PopSize'] == i].pipe(calculate_ss, geography="SSD", sizecategory = str(i), characteristic = "Age {}".format(y))
+        ss = secschdists_age.filter(pl.col('Under18_PopSize') == i).pipe(calculate_ss, geography="SSD", sizecategory = str(i), characteristic = "Age {}".format(y))
         outputdflist.append(ss)
 
 # Uni School Districts Single Year of Age < 18  
 for y in list(range(0,18)):
-    hdfunischdists_age = dfhdf[dfhdf['QAGE'] == y].group_by(['SchDistUGEOID']).agg(HDF_Population = pl.len())
-    mdfunischdists_age = dfmdf[dfmdf['QAGE'] == y].group_by(['SchDistUGEOID']).agg(MDF_Population = pl.len())
-    unischdists_age =  pd.merge(hdfunischdists_age, mdfunischdists_age, on='SchDistUGEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
+    hdfunischdists_age = dfhdf().filter(pl.col('QAGE') == y).group_by(['SchDistUGEOID']).agg(HDF_Population = pl.len())
+    mdfunischdists_age = dfmdf().filter(pl.col('QAGE') == y).group_by(['SchDistUGEOID']).agg(MDF_Population = pl.len())
+    unischdists_age =  hdfunischdists_age.join(mdfunischdists_age, on='SchDistUGEOID', how="full", coalesce=True).pipe(calculate_stats)
     ss = unischdists_age.pipe(calculate_ss, geography="USD", sizecategory = "All", characteristic = "Age {}".format(y))
     outputdflist.append(ss)
-    unischdists_age = pd.merge(unischdists_age, dfhdf[dfhdf['QAGE'] < 18].group_by(['SchDistUGEOID']).size().reset_index(name='HDF_PopulationUnder18').set_index('SchDistUGEOID').reindex(allunischdistsindex, fill_value=0).reset_index(), on="SchDistUGEOID", how="outer", validate=mergeValidation)
-    unischdists_age['Under18_PopSize'] = pd.cut(unischdists_age['HDF_PopulationUnder18'], [0,1000,10000,np.inf], left_closed = True)
+    unischdists_age = unischdists_age.join(dfhdf().filter(pl.col('QAGE') < 18).group_by('SchDistUGEOID').agg(pl.len().alias('HDF_PopulationUnder18')).collect().join(pl.DataFrame({'SchDistUGEOID': allunischdistsindex}), on='SchDistUGEOID', how='right', coalesce=True).fill_null(0), on="SchDistUGEOID", how="full", coalesce=True)
+    unischdists_age = unischdists_age.with_columns(pl.col('HDF_PopulationUnder18').cut([0,1000,10000], left_closed=True).alias('Under18_PopSize'))
     for i in unischdists_age['Under18_PopSize'].cat.get_categories():
-        ss = unischdists_age[unischdists_age['Under18_PopSize'] == i].pipe(calculate_ss, geography="USD", sizecategory = str(i), characteristic = "Age {}".format(y))
+        ss = unischdists_age.filter(pl.col('Under18_PopSize') == i).pipe(calculate_ss, geography="USD", sizecategory = str(i), characteristic = "Age {}".format(y))
         outputdflist.append(ss)
 
 # Counties Nationwide AIAN Alone or In Combination TAES
@@ -1646,9 +1627,9 @@ hdfcounties_aianaloneorincomb_taes = dfhdf[dfhdf['aianalone-or-incomb'] == 1].gr
 mdfcounties_aianaloneorincomb_taes = dfmdf[dfmdf['aianalone-or-incomb'] == 1].group_by('CountyGEOID').agg(MDF_Population = pl.len())
 hdfsize_aianaloneorincomb = len(dfhdf[dfhdf['aianalone-or-incomb'] == 1])
 mdfsize_aianaloneorincomb = len(dfmdf[dfmdf['aianalone-or-incomb'] == 1])
-counties_aianaloneorincomb_taes =  pd.merge(hdfcounties_aianaloneorincomb_taes, mdfcounties_aianaloneorincomb_taes, on='GEOID', how = 'outer', validate = mergeValidation)
-counties_aianaloneorincomb_taes  = counties_aianaloneorincomb_taes.assign(AES = lambda x: np.abs(x['HDF_Population']/hdfsize_aianaloneorincomb - x['MDF_Population']/mdfsize_aianaloneorincomb))
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'TAES AIAN Alone or In Combination Nation','NumCells':len(counties_aianaloneorincomb_taes),'TAES': np.sum(counties_aianaloneorincomb_taes['AES'])}, index=[0])
+counties_aianaloneorincomb_taes =  hdfcounties_aianaloneorincomb_taes.join(mdfcounties_aianaloneorincomb_taes, on='GEOID', how="full", coalesce=True)
+counties_aianaloneorincomb_taes  = counties_aianaloneorincomb_taes.with_columns(((pl.col('HDF_Population')/hdfsize_aianaloneorincomb - pl.col('MDF_Population')/mdfsize_aianaloneorincomb).abs()).alias('AES'))
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'TAES AIAN Alone or In Combination Nation','NumCells':len(counties_aianaloneorincomb_taes),'TAES': counties_aianaloneorincomb_taes['AES'].sum()})
 outputdflist.append(ss)
 
 # Places Nationwide AIAN Alone or In Combination TAES
@@ -1656,143 +1637,143 @@ hdfplaces_aianaloneorincomb_taes = dfhdf[dfhdf['aianalone-or-incomb'] == 1].grou
 mdfplaces_aianaloneorincomb_taes = dfmdf[dfmdf['aianalone-or-incomb'] == 1].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
 # hdfsize_aianaloneorincomb = len(dfhdf[dfhdf['aianalone-or-incomb'] == 1])
 # mdfsize_aianaloneorincomb = len(dfmdf[dfmdf['aianalone-or-incomb'] == 1])
-places_aianaloneorincomb_taes =  pd.merge(hdfplaces_aianaloneorincomb_taes, mdfplaces_aianaloneorincomb_taes, on='IncPlaceGEOID', how = 'outer', validate = mergeValidation)
-places_aianaloneorincomb_taes  = places_aianaloneorincomb_taes.assign(AES = lambda x: np.abs(x['HDF_Population']/hdfsize_aianaloneorincomb - x['MDF_Population']/mdfsize_aianaloneorincomb))
-ss = pd.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'TAES AIAN Alone or In Combination Nation','NumCells':len(places_aianaloneorincomb_taes),'TAES': np.sum(places_aianaloneorincomb_taes['AES'])}, index=[0])
+places_aianaloneorincomb_taes =  hdfplaces_aianaloneorincomb_taes.join(mdfplaces_aianaloneorincomb_taes, on='IncPlaceGEOID', how="full", coalesce=True)
+places_aianaloneorincomb_taes  = places_aianaloneorincomb_taes.with_columns(((pl.col('HDF_Population')/hdfsize_aianaloneorincomb - pl.col('MDF_Population')/mdfsize_aianaloneorincomb).abs()).alias('AES'))
+ss = pl.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'TAES AIAN Alone or In Combination Nation','NumCells':len(places_aianaloneorincomb_taes),'TAES': places_aianaloneorincomb_taes['AES'].sum()})
 outputdflist.append(ss)
 
 # Counties AIAN Alone Count Where MDF < HDF
-hdfcounties_aianalone = dfhdf[dfhdf['CENRACE'] == 3].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-mdfcounties_aianalone = dfmdf[dfmdf['CENRACE'] == 3].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-counties_aianalone =  pd.merge(hdfcounties_aianalone, mdfcounties_aianalone, on='GEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
-counties_aianalone['MDFltHDF'] = np.where(counties_aianalone['MDF_Population']  < counties_aianalone['HDF_Population'], 1, 0)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(counties_aianalone),'CountMDFltHDF': np.sum(counties_aianalone['MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(counties_aianalone.loc[counties_aianalone['MDFltHDF'] == 1,'PercDiff'])}, index=[0])
+hdfcounties_aianalone = dfhdf().filter(pl.col('CENRACE') == 3).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+mdfcounties_aianalone = dfmdf().filter(pl.col('CENRACE') == 3).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+counties_aianalone =  hdfcounties_aianalone.join(mdfcounties_aianalone, on='GEOID', how="full", coalesce=True).pipe(calculate_stats)
+counties_aianalone = counties_aianalone.with_columns(pl.when(pl.col('MDF_Population')  < pl.col('HDF_Population')).then(1).otherwise(0).alias('MDFltHDF'))
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(counties_aianalone),'CountMDFltHDF': counties_aianalone['MDFltHDF'].sum(), 'MedianPctDiffWhereMDFltHDF':counties_aianalone.filter(pl.col('MDFltHDF') == 1).get_column('PercDiff').drop_nulls().median()})
 outputdflist.append(ss)
-counties_aianalone['AIAN_PopSize'] = pd.cut(counties_aianalone['HDF_Population'], [0,10,100,np.inf], left_closed = True)
+counties_aianalone = counties_aianalone.with_columns(pl.col('HDF_Population').cut([0,10,100], left_closed=True).alias('AIAN_PopSize'))
 for i in counties_aianalone['AIAN_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':'AIAN Population Size {}'.format(i), 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(counties_aianalone[counties_aianalone['AIAN_PopSize'] == i]),'CountMDFltHDF': np.sum(counties_aianalone.loc[counties_aianalone['AIAN_PopSize'] == i, 'MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(counties_aianalone.loc[(counties_aianalone['AIAN_PopSize'] == i)&(counties_aianalone['MDFltHDF'] == 1),'PercDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':'AIAN Population Size {}'.format(i), 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(counties_aianalone.filter(pl.col('AIAN_PopSize') == i)),'CountMDFltHDF': counties_aianalone.filter(pl.col('AIAN_PopSize') == i).get_column('MDFltHDF').sum(), 'MedianPctDiffWhereMDFltHDF':counties_aianalone.filter((pl.col('AIAN_PopSize') == i) & (pl.col('MDFltHDF') == 1)).get_column('PercDiff').drop_nulls().median()})
     outputdflist.append(ss)
 
 
 # Places AIAN Alone Count Where MDF < HDF
-hdfplaces_aianalone = dfhdf[dfhdf['CENRACE'] == 3].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-mdfplaces_aianalone = dfmdf[dfmdf['CENRACE'] == 3].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-places_aianalone =  pd.merge(hdfplaces_aianalone, mdfplaces_aianalone, on='IncPlaceGEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
-places_aianalone['MDFltHDF'] = np.where(places_aianalone['MDF_Population']  < places_aianalone['HDF_Population'], 1, 0)
-ss = pd.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(places_aianalone),'CountMDFltHDF': np.sum(places_aianalone['MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(places_aianalone.loc[places_aianalone['MDFltHDF'] == 1,'PercDiff'])}, index=[0])
+hdfplaces_aianalone = dfhdf().filter(pl.col('CENRACE') == 3).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+mdfplaces_aianalone = dfmdf().filter(pl.col('CENRACE') == 3).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+places_aianalone =  hdfplaces_aianalone.join(mdfplaces_aianalone, on='IncPlaceGEOID', how="full", coalesce=True).pipe(calculate_stats)
+places_aianalone = places_aianalone.with_columns(pl.when(pl.col('MDF_Population')  < pl.col('HDF_Population')).then(1).otherwise(0).alias('MDFltHDF'))
+ss = pl.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(places_aianalone),'CountMDFltHDF': places_aianalone['MDFltHDF'].sum(), 'MedianPctDiffWhereMDFltHDF':places_aianalone.filter(pl.col('MDFltHDF') == 1).get_column('PercDiff').drop_nulls().median()})
 outputdflist.append(ss)
-places_aianalone['AIAN_PopSize'] = pd.cut(places_aianalone['HDF_Population'], [0,10,100,np.inf], left_closed = True)
+places_aianalone = places_aianalone.with_columns(pl.col('HDF_Population').cut([0,10,100], left_closed=True).alias('AIAN_PopSize'))
 for i in places_aianalone['AIAN_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'Place', 'Size_Category':'AIAN Population Size {}'.format(i), 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(places_aianalone[places_aianalone['AIAN_PopSize'] == i]),'CountMDFltHDF': np.sum(places_aianalone.loc[places_aianalone['AIAN_PopSize'] == i, 'MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(places_aianalone.loc[(places_aianalone['AIAN_PopSize'] == i)&(places_aianalone['MDFltHDF'] == 1),'PercDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'Place', 'Size_Category':'AIAN Population Size {}'.format(i), 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(places_aianalone.filter(pl.col('AIAN_PopSize') == i)),'CountMDFltHDF': places_aianalone.filter(pl.col('AIAN_PopSize') == i).get_column('MDFltHDF').sum(), 'MedianPctDiffWhereMDFltHDF':places_aianalone.filter((pl.col('AIAN_PopSize') == i) & (pl.col('MDFltHDF') == 1)).get_column('PercDiff').drop_nulls().median()})
     outputdflist.append(ss)
 
 
 # Fed AIR AIAN Alone Count Where MDF < HDF
-hdffedairs_aianalone = dfhdf[dfhdf['CENRACE'] == 3].group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
-mdffedairs_aianalone = dfmdf[dfmdf['CENRACE'] == 3].group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
-fedairs_aianalone =  pd.merge(hdffedairs_aianalone, mdffedairs_aianalone, on='FedAIRGEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
-fedairs_aianalone['MDFltHDF'] = np.where(fedairs_aianalone['MDF_Population']  < fedairs_aianalone['HDF_Population'], 1, 0)
-ss = pd.DataFrame({'Geography':'Fed AIR', 'Size_Category':'All', 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(fedairs_aianalone),'CountMDFltHDF': np.sum(fedairs_aianalone['MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(fedairs_aianalone.loc[fedairs_aianalone['MDFltHDF'] == 1,'PercDiff'])}, index=[0])
+hdffedairs_aianalone = dfhdf().filter(pl.col('CENRACE') == 3).group_by(['FedAIRGEOID']).agg(HDF_Population = pl.len())
+mdffedairs_aianalone = dfmdf().filter(pl.col('CENRACE') == 3).group_by(['FedAIRGEOID']).agg(MDF_Population = pl.len())
+fedairs_aianalone =  hdffedairs_aianalone.join(mdffedairs_aianalone, on='FedAIRGEOID', how="full", coalesce=True).pipe(calculate_stats)
+fedairs_aianalone = fedairs_aianalone.with_columns(pl.when(pl.col('MDF_Population')  < pl.col('HDF_Population')).then(1).otherwise(0).alias('MDFltHDF'))
+ss = pl.DataFrame({'Geography':'Fed AIR', 'Size_Category':'All', 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(fedairs_aianalone),'CountMDFltHDF': fedairs_aianalone['MDFltHDF'].sum(), 'MedianPctDiffWhereMDFltHDF':fedairs_aianalone.filter(pl.col('MDFltHDF') == 1).get_column('PercDiff').drop_nulls().median()})
 outputdflist.append(ss)
-fedairs_aianalone['AIAN_PopSize'] = pd.cut(fedairs_aianalone['HDF_Population'], [0,10,100,np.inf], left_closed = True)
+fedairs_aianalone = fedairs_aianalone.with_columns(pl.col('HDF_Population').cut([0,10,100], left_closed=True).alias('AIAN_PopSize'))
 for i in fedairs_aianalone['AIAN_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'Fed AIR', 'Size_Category':'AIAN Population Size {}'.format(i), 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(fedairs_aianalone[fedairs_aianalone['AIAN_PopSize'] == i]),'CountMDFltHDF': np.sum(fedairs_aianalone.loc[fedairs_aianalone['AIAN_PopSize'] == i, 'MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(fedairs_aianalone.loc[(fedairs_aianalone['AIAN_PopSize'] == i)&(fedairs_aianalone['MDFltHDF'] == 1),'PercDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'Fed AIR', 'Size_Category':'AIAN Population Size {}'.format(i), 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(fedairs_aianalone.filter(pl.col('AIAN_PopSize') == i)),'CountMDFltHDF': fedairs_aianalone.filter(pl.col('AIAN_PopSize') == i).get_column('MDFltHDF').sum(), 'MedianPctDiffWhereMDFltHDF':fedairs_aianalone.filter((pl.col('AIAN_PopSize') == i) & (pl.col('MDFltHDF') == 1)).get_column('PercDiff').drop_nulls().median()})
     outputdflist.append(ss)
 
 
 # OTSA AIAN Alone Count Where MDF < HDF
-hdfotsas_aianalone = dfhdf[dfhdf['CENRACE'] == 3].group_by(['OTSAGEOID']).agg(HDF_Population = pl.len())
-mdfotsas_aianalone = dfmdf[dfmdf['CENRACE'] == 3].group_by(['OTSAGEOID']).agg(MDF_Population = pl.len())
-otsas_aianalone =  pd.merge(hdfotsas_aianalone, mdfotsas_aianalone, on='OTSAGEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
-otsas_aianalone['MDFltHDF'] = np.where(otsas_aianalone['MDF_Population']  < otsas_aianalone['HDF_Population'], 1, 0)
-ss = pd.DataFrame({'Geography':'OTSA', 'Size_Category':'All', 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(otsas_aianalone),'CountMDFltHDF': np.sum(otsas_aianalone['MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(otsas_aianalone.loc[otsas_aianalone['MDFltHDF'] == 1,'PercDiff'])}, index=[0])
+hdfotsas_aianalone = dfhdf().filter(pl.col('CENRACE') == 3).group_by(['OTSAGEOID']).agg(HDF_Population = pl.len())
+mdfotsas_aianalone = dfmdf().filter(pl.col('CENRACE') == 3).group_by(['OTSAGEOID']).agg(MDF_Population = pl.len())
+otsas_aianalone =  hdfotsas_aianalone.join(mdfotsas_aianalone, on='OTSAGEOID', how="full", coalesce=True).pipe(calculate_stats)
+otsas_aianalone = otsas_aianalone.with_columns(pl.when(pl.col('MDF_Population')  < pl.col('HDF_Population')).then(1).otherwise(0).alias('MDFltHDF'))
+ss = pl.DataFrame({'Geography':'OTSA', 'Size_Category':'All', 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(otsas_aianalone),'CountMDFltHDF': otsas_aianalone['MDFltHDF'].sum(), 'MedianPctDiffWhereMDFltHDF':otsas_aianalone.filter(pl.col('MDFltHDF') == 1).get_column('PercDiff').drop_nulls().median()})
 outputdflist.append(ss)
-otsas_aianalone['AIAN_PopSize'] = pd.cut(otsas_aianalone['HDF_Population'], [0,10,100,np.inf], left_closed = True)
+otsas_aianalone = otsas_aianalone.with_columns(pl.col('HDF_Population').cut([0,10,100], left_closed=True).alias('AIAN_PopSize'))
 for i in otsas_aianalone['AIAN_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'OTSA', 'Size_Category':'AIAN Population Size {}'.format(i), 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(otsas_aianalone[otsas_aianalone['AIAN_PopSize'] == i]),'CountMDFltHDF': np.sum(otsas_aianalone.loc[otsas_aianalone['AIAN_PopSize'] == i, 'MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(otsas_aianalone.loc[(otsas_aianalone['AIAN_PopSize'] == i)&(otsas_aianalone['MDFltHDF'] == 1),'PercDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'OTSA', 'Size_Category':'AIAN Population Size {}'.format(i), 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(otsas_aianalone.filter(pl.col('AIAN_PopSize') == i)),'CountMDFltHDF': otsas_aianalone.filter(pl.col('AIAN_PopSize') == i).get_column('MDFltHDF').sum(), 'MedianPctDiffWhereMDFltHDF':otsas_aianalone.filter((pl.col('AIAN_PopSize') == i) & (pl.col('MDFltHDF') == 1)).get_column('PercDiff').drop_nulls().median()})
     outputdflist.append(ss)
 
 # ANVSA AIAN Alone Count Where MDF < HDF
-hdfanvsas_aianalone = dfhdf[dfhdf['CENRACE'] == 3].group_by(['ANVSAGEOID']).agg(HDF_Population = pl.len())
-mdfanvsas_aianalone = dfmdf[dfmdf['CENRACE'] == 3].group_by(['ANVSAGEOID']).agg(MDF_Population = pl.len())
-anvsas_aianalone =  pd.merge(hdfanvsas_aianalone, mdfanvsas_aianalone, on='ANVSAGEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
-anvsas_aianalone['MDFltHDF'] = np.where(anvsas_aianalone['MDF_Population']  < anvsas_aianalone['HDF_Population'], 1, 0)
-ss = pd.DataFrame({'Geography':'ANVSA', 'Size_Category':'All', 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(anvsas_aianalone),'CountMDFltHDF': np.sum(anvsas_aianalone['MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(anvsas_aianalone.loc[anvsas_aianalone['MDFltHDF'] == 1,'PercDiff'])}, index=[0])
+hdfanvsas_aianalone = dfhdf().filter(pl.col('CENRACE') == 3).group_by(['ANVSAGEOID']).agg(HDF_Population = pl.len())
+mdfanvsas_aianalone = dfmdf().filter(pl.col('CENRACE') == 3).group_by(['ANVSAGEOID']).agg(MDF_Population = pl.len())
+anvsas_aianalone =  hdfanvsas_aianalone.join(mdfanvsas_aianalone, on='ANVSAGEOID', how="full", coalesce=True).pipe(calculate_stats)
+anvsas_aianalone = anvsas_aianalone.with_columns(pl.when(pl.col('MDF_Population')  < pl.col('HDF_Population')).then(1).otherwise(0).alias('MDFltHDF'))
+ss = pl.DataFrame({'Geography':'ANVSA', 'Size_Category':'All', 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(anvsas_aianalone),'CountMDFltHDF': anvsas_aianalone['MDFltHDF'].sum(), 'MedianPctDiffWhereMDFltHDF':anvsas_aianalone.filter(pl.col('MDFltHDF') == 1).get_column('PercDiff').drop_nulls().median()})
 outputdflist.append(ss)
-anvsas_aianalone['AIAN_PopSize'] = pd.cut(anvsas_aianalone['HDF_Population'], [0,10,100,np.inf], left_closed = True)
+anvsas_aianalone = anvsas_aianalone.with_columns(pl.col('HDF_Population').cut([0,10,100], left_closed=True).alias('AIAN_PopSize'))
 for i in anvsas_aianalone['AIAN_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'ANVSA', 'Size_Category':'AIAN Population Size {}'.format(i), 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(anvsas_aianalone[anvsas_aianalone['AIAN_PopSize'] == i]),'CountMDFltHDF': np.sum(anvsas_aianalone.loc[anvsas_aianalone['AIAN_PopSize'] == i, 'MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(anvsas_aianalone.loc[(anvsas_aianalone['AIAN_PopSize'] == i)&(anvsas_aianalone['MDFltHDF'] == 1),'PercDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'ANVSA', 'Size_Category':'AIAN Population Size {}'.format(i), 'Characteristic':'AIAN Alone CountMDFltHDF', 'NumCells':len(anvsas_aianalone.filter(pl.col('AIAN_PopSize') == i)),'CountMDFltHDF': anvsas_aianalone.filter(pl.col('AIAN_PopSize') == i).get_column('MDFltHDF').sum(), 'MedianPctDiffWhereMDFltHDF':anvsas_aianalone.filter((pl.col('AIAN_PopSize') == i) & (pl.col('MDFltHDF') == 1)).get_column('PercDiff').drop_nulls().median()})
     outputdflist.append(ss)
 
 # Counties NHPI Alone Count Where MDF < HDF
-hdfcounties_nhpialone = dfhdf[dfhdf['CENRACE'] == 5].group_by('CountyGEOID').agg(HDF_Population = pl.len())
-mdfcounties_nhpialone = dfmdf[dfmdf['CENRACE'] == 5].group_by('CountyGEOID').agg(MDF_Population = pl.len())
-counties_nhpialone =  pd.merge(hdfcounties_nhpialone, mdfcounties_nhpialone, on='GEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
-counties_nhpialone['MDFltHDF'] = np.where(counties_nhpialone['MDF_Population']  < counties_nhpialone['HDF_Population'], 1, 0)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'NHPI Alone CountMDFltHDF', 'NumCells':len(counties_nhpialone),'CountMDFltHDF': np.sum(counties_nhpialone['MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(counties_nhpialone.loc[counties_nhpialone['MDFltHDF'] == 1,'PercDiff'])}, index=[0])
+hdfcounties_nhpialone = dfhdf().filter(pl.col('CENRACE') == 5).group_by('CountyGEOID').agg(HDF_Population = pl.len())
+mdfcounties_nhpialone = dfmdf().filter(pl.col('CENRACE') == 5).group_by('CountyGEOID').agg(MDF_Population = pl.len())
+counties_nhpialone =  hdfcounties_nhpialone.join(mdfcounties_nhpialone, on='GEOID', how="full", coalesce=True).pipe(calculate_stats)
+counties_nhpialone = counties_nhpialone.with_columns(pl.when(pl.col('MDF_Population')  < pl.col('HDF_Population')).then(1).otherwise(0).alias('MDFltHDF'))
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'NHPI Alone CountMDFltHDF', 'NumCells':len(counties_nhpialone),'CountMDFltHDF': counties_nhpialone['MDFltHDF'].sum(), 'MedianPctDiffWhereMDFltHDF':counties_nhpialone.filter(pl.col('MDFltHDF') == 1).get_column('PercDiff').drop_nulls().median()})
 outputdflist.append(ss)
-counties_nhpialone['NHPI_PopSize'] = pd.cut(counties_nhpialone['HDF_Population'], [0,10,100,np.inf], left_closed = True)
+counties_nhpialone = counties_nhpialone.with_columns(pl.col('HDF_Population').cut([0,10,100], left_closed=True).alias('NHPI_PopSize'))
 for i in counties_nhpialone['NHPI_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':'NHPI Population Size {}'.format(i), 'Characteristic':'NHPI Alone CountMDFltHDF', 'NumCells':len(counties_nhpialone[counties_nhpialone['NHPI_PopSize'] == i]),'CountMDFltHDF': np.sum(counties_nhpialone.loc[counties_nhpialone['NHPI_PopSize'] == i, 'MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(counties_nhpialone.loc[(counties_nhpialone['NHPI_PopSize'] == i)&(counties_nhpialone['MDFltHDF'] == 1),'PercDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':'NHPI Population Size {}'.format(i), 'Characteristic':'NHPI Alone CountMDFltHDF', 'NumCells':len(counties_nhpialone.filter(pl.col('NHPI_PopSize') == i)),'CountMDFltHDF': counties_nhpialone.filter(pl.col('NHPI_PopSize') == i).get_column('MDFltHDF').sum(), 'MedianPctDiffWhereMDFltHDF':counties_nhpialone.filter((pl.col('NHPI_PopSize') == i) & (pl.col('MDFltHDF') == 1)).get_column('PercDiff').drop_nulls().median()})
     outputdflist.append(ss)
 
 # Places NHPI Alone Count Where MDF < HDF
-hdfplaces_nhpialone = dfhdf[dfhdf['CENRACE'] == 5].group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
-mdfplaces_nhpialone = dfmdf[dfmdf['CENRACE'] == 5].group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-places_nhpialone =  pd.merge(hdfplaces_nhpialone, mdfplaces_nhpialone, on='IncPlaceGEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
-places_nhpialone['MDFltHDF'] = np.where(places_nhpialone['MDF_Population']  < places_nhpialone['HDF_Population'], 1, 0)
-ss = pd.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'NHPI Alone CountMDFltHDF', 'NumCells':len(places_nhpialone),'CountMDFltHDF': np.sum(places_nhpialone['MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(places_nhpialone.loc[places_nhpialone['MDFltHDF'] == 1,'PercDiff'])}, index=[0])
+hdfplaces_nhpialone = dfhdf().filter(pl.col('CENRACE') == 5).group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
+mdfplaces_nhpialone = dfmdf().filter(pl.col('CENRACE') == 5).group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
+places_nhpialone =  hdfplaces_nhpialone.join(mdfplaces_nhpialone, on='IncPlaceGEOID', how="full", coalesce=True).pipe(calculate_stats)
+places_nhpialone = places_nhpialone.with_columns(pl.when(pl.col('MDF_Population')  < pl.col('HDF_Population')).then(1).otherwise(0).alias('MDFltHDF'))
+ss = pl.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'NHPI Alone CountMDFltHDF', 'NumCells':len(places_nhpialone),'CountMDFltHDF': places_nhpialone['MDFltHDF'].sum(), 'MedianPctDiffWhereMDFltHDF':places_nhpialone.filter(pl.col('MDFltHDF') == 1).get_column('PercDiff').drop_nulls().median()})
 outputdflist.append(ss)
-places_nhpialone['NHPI_PopSize'] = pd.cut(places_nhpialone['HDF_Population'], [0,10,100,np.inf], left_closed = True)
+places_nhpialone = places_nhpialone.with_columns(pl.col('HDF_Population').cut([0,10,100], left_closed=True).alias('NHPI_PopSize'))
 for i in places_nhpialone['NHPI_PopSize'].cat.get_categories():
-    ss = pd.DataFrame({'Geography':'Place', 'Size_Category':'NHPI Population Size {}'.format(i), 'Characteristic':'NHPI Alone CountMDFltHDF', 'NumCells':len(places_nhpialone[places_nhpialone['NHPI_PopSize'] == i]),'CountMDFltHDF': np.sum(places_nhpialone.loc[places_nhpialone['NHPI_PopSize'] == i, 'MDFltHDF']), 'MedianPctDiffWhereMDFltHDF':np.nanmedian(places_nhpialone.loc[(places_nhpialone['NHPI_PopSize'] == i)&(places_nhpialone['MDFltHDF'] == 1),'PercDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'Place', 'Size_Category':'NHPI Population Size {}'.format(i), 'Characteristic':'NHPI Alone CountMDFltHDF', 'NumCells':len(places_nhpialone.filter(pl.col('NHPI_PopSize') == i)),'CountMDFltHDF': places_nhpialone.filter(pl.col('NHPI_PopSize') == i).get_column('MDFltHDF').sum(), 'MedianPctDiffWhereMDFltHDF':places_nhpialone.filter((pl.col('NHPI_PopSize') == i) & (pl.col('MDFltHDF') == 1)).get_column('PercDiff').drop_nulls().median()})
     outputdflist.append(ss)
 
 # Tracts AIAN Alone or in Combination 
-hdftracts_aianincomb = dfhdf[(dfhdf['aianalone-or-incomb']==1)].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-mdftracts_aianincomb = dfmdf[(dfmdf['aianalone-or-incomb']==1)].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-tracts_aianincomb =  pd.merge(hdftracts_aianincomb, mdftracts_aianincomb, on='GEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
-tracts_aianincomb['HundredPlusMDFLessThan20HDF'] = np.where((tracts_aianincomb['HDF_Population'] < 20) & (tracts_aianincomb['MDF_Population'] >=100), 1, 0)
-tracts_aianincomb['LessThan20MDFHundredPlusHDF'] = np.where((tracts_aianincomb['HDF_Population'] >=100) & (tracts_aianincomb['MDF_Population'] < 20), 1, 0)
+hdftracts_aianincomb = dfhdf().filter((dfhdf['aianalone-or-incomb']==1).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+mdftracts_aianincomb = dfmdf().filter((dfmdf['aianalone-or-incomb']==1).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+tracts_aianincomb =  hdftracts_aianincomb.join(mdftracts_aianincomb, on='GEOID', how="full", coalesce=True).pipe(calculate_stats)
+tracts_aianincomb = tracts_aianincomb.with_columns(pl.when((pl.col('HDF_Population') < 20) & (pl.col('MDF_Population') >=100)).then(1).otherwise(0).alias('HundredPlusMDFLessThan20HDF'))
+tracts_aianincomb = tracts_aianincomb.with_columns(pl.when((pl.col('HDF_Population') >=100) & (pl.col('MDF_Population') < 20)).then(1).otherwise(0).alias('LessThan20MDFHundredPlusHDF'))
 ss = tracts_aianincomb.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "AIAN Alone Or In Combination")
-ss = ss.join(pd.DataFrame({'Number100PlusMDFLessThan20HDF':np.sum(tracts_aianincomb['HundredPlusMDFLessThan20HDF']), 'NumberLessThan20MDF100PlusHDF':np.sum(tracts_aianincomb['LessThan20MDFHundredPlusHDF'])}, index=[0]))
+ss = ss.hstack(pl.DataFrame({'Number100PlusMDFLessThan20HDF':tracts_aianincomb['HundredPlusMDFLessThan20HDF'].sum(), 'NumberLessThan20MDF100PlusHDF':tracts_aianincomb['LessThan20MDFHundredPlusHDF'].sum()}))
 outputdflist.append(ss)
 
 # Tracts NHPI
-hdftracts_nhpialone = dfhdf[dfhdf['CENRACE'] == 5].group_by(['TractGEOID']).agg(HDF_Population = pl.len())
-mdftracts_nhpialone = dfmdf[dfmdf['CENRACE'] == 5].group_by(['TractGEOID']).agg(MDF_Population = pl.len())
-tracts_nhpialone =  pd.merge(hdftracts_nhpialone, mdftracts_nhpialone, on='GEOID', how = 'outer', validate = mergeValidation).pipe(calculate_stats)
-tracts_nhpialone['HundredPlusMDFLessThan20HDF'] = np.where((tracts_nhpialone['HDF_Population'] < 20) & (tracts_nhpialone['MDF_Population'] >=100), 1, 0)
-tracts_nhpialone['LessThan20MDFHundredPlusHDF'] = np.where((tracts_nhpialone['HDF_Population'] >=100) & (tracts_nhpialone['MDF_Population'] < 20), 1, 0)
+hdftracts_nhpialone = dfhdf().filter(pl.col('CENRACE') == 5).group_by(['TractGEOID']).agg(HDF_Population = pl.len())
+mdftracts_nhpialone = dfmdf().filter(pl.col('CENRACE') == 5).group_by(['TractGEOID']).agg(MDF_Population = pl.len())
+tracts_nhpialone =  hdftracts_nhpialone.join(mdftracts_nhpialone, on='GEOID', how="full", coalesce=True).pipe(calculate_stats)
+tracts_nhpialone = tracts_nhpialone.with_columns(pl.when((pl.col('HDF_Population') < 20) & (pl.col('MDF_Population') >=100)).then(1).otherwise(0).alias('HundredPlusMDFLessThan20HDF'))
+tracts_nhpialone = tracts_nhpialone.with_columns(pl.when((pl.col('HDF_Population') >=100) & (pl.col('MDF_Population') < 20)).then(1).otherwise(0).alias('LessThan20MDFHundredPlusHDF'))
 ss = tracts_nhpialone.pipe(calculate_ss, geography="Tract", sizecategory = "All", characteristic = "NHPI Alone")
-ss = ss.join(pd.DataFrame({'Number100PlusMDFLessThan20HDF':np.sum(tracts_nhpialone['HundredPlusMDFLessThan20HDF']), 'NumberLessThan20MDF100PlusHDF':np.sum(tracts_nhpialone['LessThan20MDFHundredPlusHDF'])}, index=[0]))
+ss = ss.hstack(pl.DataFrame({'Number100PlusMDFLessThan20HDF':tracts_nhpialone['HundredPlusMDFLessThan20HDF'].sum(), 'NumberLessThan20MDF100PlusHDF':tracts_nhpialone['LessThan20MDFHundredPlusHDF'].sum()}))
 outputdflist.append(ss)
 
 # Counties Total Population Cross 50000
 hdfcounties_totalpop = dfhdf().group_by('CountyGEOID').agg(HDF_Population = pl.len())
 mdfcounties_totalpop = dfmdf().group_by('CountyGEOID').agg(MDF_Population = pl.len())
-counties_totalpop =  pd.merge(hdfcounties_totalpop, mdfcounties_totalpop, on='GEOID', how = 'outer', validate = mergeValidation)
-counties_totalpop['HDFgt50kMDFlt50k'] = np.where((counties_totalpop['MDF_Population'] < 50000) & (counties_totalpop['HDF_Population'] > 50000), 1, 0)
-counties_totalpop['HDFlt50kMDFgt50k'] = np.where((counties_totalpop['MDF_Population'] > 50000) & (counties_totalpop['HDF_Population'] < 50000), 1, 0)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'Cross 50000','NumCells': len(counties_totalpop),'NumberHDFgt50kMDFlt50k': np.sum(counties_totalpop['HDFgt50kMDFlt50k']), 'NumberHDFlt50kMDFgt50k': np.sum(counties_totalpop['HDFlt50kMDFgt50k'])}, index=[0])
+counties_totalpop =  hdfcounties_totalpop.join(mdfcounties_totalpop, on='GEOID', how="full", coalesce=True)
+counties_totalpop = counties_totalpop.with_columns(pl.when((pl.col('MDF_Population') < 50000) & (pl.col('HDF_Population') > 50000)).then(1).otherwise(0).alias('HDFgt50kMDFlt50k'))
+counties_totalpop = counties_totalpop.with_columns(pl.when((pl.col('MDF_Population') > 50000) & (pl.col('HDF_Population') < 50000)).then(1).otherwise(0).alias('HDFlt50kMDFgt50k'))
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'Cross 50000','NumCells': len(counties_totalpop),'NumberHDFgt50kMDFlt50k': counties_totalpop['HDFgt50kMDFlt50k'].sum(), 'NumberHDFlt50kMDFgt50k': counties_totalpop['HDFlt50kMDFgt50k'].sum()})
 outputdflist.append(ss)
 
 # Places Total Population Cross 50000
 hdfplaces_totalpop = dfhdf().group_by(['IncPlaceGEOID']).agg(HDF_Population = pl.len())
 mdfplaces_totalpop = dfmdf().group_by(['IncPlaceGEOID']).agg(MDF_Population = pl.len())
-places_totalpop =  pd.merge(hdfplaces_totalpop, mdfplaces_totalpop, on='IncPlaceGEOID', how = 'outer', validate = mergeValidation)
-places_totalpop['HDFgt50kMDFlt50k'] = np.where((places_totalpop['MDF_Population'] < 50000) & (places_totalpop['HDF_Population'] > 50000), 1, 0)
-places_totalpop['HDFlt50kMDFgt50k'] = np.where((places_totalpop['MDF_Population'] > 50000) & (places_totalpop['HDF_Population'] < 50000), 1, 0)
-ss = pd.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'Cross 50000','NumCells': len(places_totalpop),'NumberHDFgt50kMDFlt50k': np.sum(places_totalpop['HDFgt50kMDFlt50k']), 'NumberHDFlt50kMDFgt50k': np.sum(places_totalpop['HDFlt50kMDFgt50k'])}, index=[0])
+places_totalpop =  hdfplaces_totalpop.join(mdfplaces_totalpop, on='IncPlaceGEOID', how="full", coalesce=True)
+places_totalpop = places_totalpop.with_columns(pl.when((pl.col('MDF_Population') < 50000) & (pl.col('HDF_Population') > 50000)).then(1).otherwise(0).alias('HDFgt50kMDFlt50k'))
+places_totalpop = places_totalpop.with_columns(pl.when((pl.col('MDF_Population') > 50000) & (pl.col('HDF_Population') < 50000)).then(1).otherwise(0).alias('HDFlt50kMDFgt50k'))
+ss = pl.DataFrame({'Geography':'Place', 'Size_Category':'All', 'Characteristic':'Cross 50000','NumCells': len(places_totalpop),'NumberHDFgt50kMDFlt50k': places_totalpop['HDFgt50kMDFlt50k'].sum(), 'NumberHDFlt50kMDFgt50k': places_totalpop['HDFlt50kMDFgt50k'].sum()})
 outputdflist.append(ss)
 
 # Tracts Total Population Cross 50000
 hdftracts_totalpop = dfhdf().group_by('TractGEOID').agg(HDF_Population = pl.len())
 mdftracts_totalpop = dfmdf().group_by('TractGEOID').agg(MDF_Population = pl.len())
-tracts_totalpop =  pd.merge(hdftracts_totalpop, mdftracts_totalpop, on='GEOID', how = 'outer', validate = mergeValidation)
-tracts_totalpop['HDFgt50kMDFlt50k'] = np.where((tracts_totalpop['MDF_Population'] < 50000) & (tracts_totalpop['HDF_Population'] > 50000), 1, 0)
-tracts_totalpop['HDFlt50kMDFgt50k'] = np.where((tracts_totalpop['MDF_Population'] > 50000) & (tracts_totalpop['HDF_Population'] < 50000), 1, 0)
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'Cross 50000','NumCells': len(tracts_totalpop),'NumberHDFgt50kMDFlt50k': np.sum(tracts_totalpop['HDFgt50kMDFlt50k']), 'NumberHDFlt50kMDFgt50k': np.sum(tracts_totalpop['HDFlt50kMDFgt50k'])}, index=[0])
+tracts_totalpop =  hdftracts_totalpop.join(mdftracts_totalpop, on='GEOID', how="full", coalesce=True)
+tracts_totalpop = tracts_totalpop.with_columns(pl.when((pl.col('MDF_Population') < 50000) & (pl.col('HDF_Population') > 50000)).then(1).otherwise(0).alias('HDFgt50kMDFlt50k'))
+tracts_totalpop = tracts_totalpop.with_columns(pl.when((pl.col('MDF_Population') > 50000) & (pl.col('HDF_Population') < 50000)).then(1).otherwise(0).alias('HDFlt50kMDFgt50k'))
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'Cross 50000','NumCells': len(tracts_totalpop),'NumberHDFgt50kMDFlt50k': tracts_totalpop['HDFgt50kMDFlt50k'].sum(), 'NumberHDFlt50kMDFgt50k': tracts_totalpop['HDFlt50kMDFgt50k'].sum()})
 outputdflist.append(ss)
 
 
@@ -1803,229 +1784,229 @@ print("{} Starting Improbable and Impossible Measurements".format(datetime.now()
 # States Total Population Should Be Equal
 hdfstates_totalpop = dfhdf().group_by(['TABBLKST']).agg(HDF_Population = pl.len())
 mdfstates_totalpop = dfmdf().group_by(['TABBLKST']).agg(MDF_Population = pl.len())
-states_totalpop =  pd.merge(hdfstates_totalpop, mdfstates_totalpop, on='GEOID', how = 'outer', validate = mergeValidation)
-states_totalpop['HDFneMDF'] = np.where(states_totalpop['MDF_Population'] != states_totalpop['HDF_Population'], 1, 0)
-ss = pd.DataFrame({'Geography':'State', 'Size_Category':'All', 'Characteristic':'Total Population','NumCells': len(states_totalpop),'NumberHDFneMDF': np.sum(states_totalpop['HDFneMDF'])}, index=[0])
+states_totalpop =  hdfstates_totalpop.join(mdfstates_totalpop, on='GEOID', how="full", coalesce=True)
+states_totalpop = states_totalpop.with_columns(pl.when(pl.col('MDF_Population') != pl.col('HDF_Population')).then(1).otherwise(0).alias('HDFneMDF'))
+ss = pl.DataFrame({'Geography':'State', 'Size_Category':'All', 'Characteristic':'Total Population','NumCells': len(states_totalpop),'NumberHDFneMDF': states_totalpop['HDFneMDF'].sum()})
 outputdflist.append(ss)
 
 # Counties with at least 5 children under age 5 and no women age 18 through 44
-hdfcounties_poplt5 = dfhdf[dfhdf['QAGE'] < 5].group_by('CountyGEOID').size().reset_index(name='HDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_poplt5 = dfmdf[dfmdf['QAGE'] < 5].group_by('CountyGEOID').size().reset_index(name='MDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-hdfcounties_popfem1844 = dfhdf[(dfhdf['QSEX'] == '2')&(dfhdf['QAGE'] >= 18)&(dfhdf['QAGE'] < 45)].group_by('CountyGEOID').size().reset_index(name='HDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_popfem1844 = dfmdf[(dfmdf['QSEX'] == '2')&(dfmdf['QAGE'] >= 18)&(dfmdf['QAGE'] < 45)].group_by('CountyGEOID').size().reset_index(name='MDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
+hdfcounties_poplt5 = dfhdf().filter(pl.col('QAGE') < 5).group_by('CountyGEOID').agg(pl.len().alias('HDF_Children'))
+mdfcounties_poplt5 = dfmdf().filter(pl.col('QAGE') < 5).group_by('CountyGEOID').agg(pl.len().alias('MDF_Children'))
+hdfcounties_popfem1844 = dfhdf().filter((pl.col('QSEX') == '2'), (pl.col('QAGE') >= 18), (pl.col('QAGE') < 45)).group_by('CountyGEOID').agg(pl.len().alias('HDF_MomAge'))
+mdfcounties_popfem1844 = dfmdf().filter((pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('CountyGEOID').agg(pl.len().alias('MDF_MomAge'))
 
-hdfcounties_poplt5 = hdfcounties_poplt5[hdfcounties_poplt5['HDF_Children'] >=5]
-mdfcounties_poplt5 = mdfcounties_poplt5[mdfcounties_poplt5['MDF_Children'] >=5]
+hdfcounties_poplt5 = hdfcounties_poplt5.filter(pl.col('HDF_Children') >= 5)
+mdfcounties_poplt5 = mdfcounties_poplt5.filter(pl.col('MDF_Children') >= 5)
 
-hdfcounties =  pd.merge(hdfcounties_poplt5, hdfcounties_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
-mdfcounties =  pd.merge(mdfcounties_poplt5, mdfcounties_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
+hdfcounties =  hdfcounties_poplt5.join(hdfcounties_popfem1844, on='GEOID', how="left", coalesce=True)
+mdfcounties =  mdfcounties_poplt5.join(mdfcounties_popfem1844, on='GEOID', how="left", coalesce=True)
 
-hdfcounties['ChildrenNoMoms'] = np.where((hdfcounties['HDF_Children'] >= 5)&(hdfcounties['HDF_MomAge'] == 0), 1, 0)
-mdfcounties['ChildrenNoMoms'] = np.where((mdfcounties['MDF_Children'] >= 5)&(mdfcounties['MDF_MomAge'] == 0), 1, 0)
+hdfcounties = hdfcounties.with_columns(pl.when((pl.col('HDF_Children') >= 5)&(pl.col('HDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
+mdfcounties = mdfcounties.with_columns(pl.when((pl.col('MDF_Children') >= 5)&(pl.col('MDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
 
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms','NumCells':len(hdfcounties), 'Inconsistent':np.sum(hdfcounties['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms','NumCells':len(hdfcounties), 'Inconsistent':hdfcounties['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms','NumCells':len(mdfcounties), 'Inconsistent':np.sum(mdfcounties['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms','NumCells':len(mdfcounties), 'Inconsistent':mdfcounties['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
 
 # Tracts with at least 5 children under age 5 and no women age 18 through 44
-hdftracts_poplt5 = dfhdf[dfhdf['QAGE'] < 5].group_by('TractGEOID').size().reset_index(name='HDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-mdftracts_poplt5 = dfmdf[dfmdf['QAGE'] < 5].group_by('TractGEOID').size().reset_index(name='MDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-hdftracts_popfem1844 = dfhdf[(dfhdf['QSEX'] == '2')&(dfhdf['QAGE'] >= 18)&(dfhdf['QAGE'] < 45)].group_by('TractGEOID').size().reset_index(name='HDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-mdftracts_popfem1844 = dfmdf[(dfmdf['QSEX'] == '2')&(dfmdf['QAGE'] >= 18)&(dfmdf['QAGE'] < 45)].group_by('TractGEOID').size().reset_index(name='MDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
+hdftracts_poplt5 = dfhdf().filter(pl.col('QAGE') < 5).group_by('TractGEOID').agg(pl.len().alias('HDF_Children')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdftracts_poplt5 = dfmdf().filter(pl.col('QAGE') < 5).group_by('TractGEOID').agg(pl.len().alias('MDF_Children')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+hdftracts_popfem1844 = dfhdf().filter((pl.col('QSEX') == '2'), (pl.col('QAGE') >= 18), (pl.col('QAGE') < 45)).group_by('TractGEOID').agg(pl.len().alias('HDF_MomAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdftracts_popfem1844 = dfmdf().filter((pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('TractGEOID').agg(pl.len().alias('MDF_MomAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
 
-hdftracts_poplt5 = hdftracts_poplt5[hdftracts_poplt5['HDF_Children'] >=5]
-mdftracts_poplt5 = mdftracts_poplt5[mdftracts_poplt5['MDF_Children'] >=5]
+hdftracts_poplt5 = hdftracts_poplt5.filter(pl.col('HDF_Children') >= 5)
+mdftracts_poplt5 = mdftracts_poplt5.filter(pl.col('MDF_Children') >= 5)
 
-hdftracts =  pd.merge(hdftracts_poplt5, hdftracts_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
-mdftracts =  pd.merge(mdftracts_poplt5, mdftracts_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
+hdftracts =  hdftracts_poplt5.join(hdftracts_popfem1844, on='GEOID', how="left", coalesce=True)
+mdftracts =  mdftracts_poplt5.join(mdftracts_popfem1844, on='GEOID', how="left", coalesce=True)
 
-hdftracts['ChildrenNoMoms'] = np.where((hdftracts['HDF_Children'] >= 5)&(hdftracts['HDF_MomAge'] == 0), 1, 0)
-mdftracts['ChildrenNoMoms'] = np.where((mdftracts['MDF_Children'] >= 5)&(mdftracts['MDF_MomAge'] == 0), 1, 0)
+hdftracts = hdftracts.with_columns(pl.when((pl.col('HDF_Children') >= 5)&(pl.col('HDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
+mdftracts = mdftracts.with_columns(pl.when((pl.col('MDF_Children') >= 5)&(pl.col('MDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
 
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms','NumCells':len(hdftracts), 'Inconsistent':np.sum(hdftracts['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms','NumCells':len(hdftracts), 'Inconsistent':hdftracts['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms','NumCells':len(mdftracts), 'Inconsistent':np.sum(mdftracts['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms','NumCells':len(mdftracts), 'Inconsistent':mdftracts['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
 
 # Counties with at least 5 children under age 5 and no women age 18 through 44 by race alone
 for r in racealonecats:
-    hdfcounties_poplt5 = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QAGE'] < 5)].group_by('CountyGEOID').size().reset_index(name='HDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-    mdfcounties_poplt5 = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QAGE'] < 5)].group_by('CountyGEOID').size().reset_index(name='MDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-    hdfcounties_popfem1844 = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QSEX'] == '2')&(dfhdf['QAGE'] >= 18)&(dfhdf['QAGE'] < 45)].group_by('CountyGEOID').size().reset_index(name='HDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-    mdfcounties_popfem1844 = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QSEX'] == '2')&(dfmdf['QAGE'] >= 18)&(dfmdf['QAGE'] < 45)].group_by('CountyGEOID').size().reset_index(name='MDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
+    hdfcounties_poplt5 = dfhdf().filter((pl.col('RACEALONE') == r)&(pl.col('QAGE') < 5).group_by('CountyGEOID').agg(pl.len().alias('HDF_Children'))
+    mdfcounties_poplt5 = dfmdf().filter((pl.col('RACEALONE') == r)&(pl.col('QAGE') < 5).group_by('CountyGEOID').agg(pl.len().alias('MDF_Children'))
+    hdfcounties_popfem1844 = dfhdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('CountyGEOID').agg(pl.len().alias('HDF_MomAge'))
+    mdfcounties_popfem1844 = dfmdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('CountyGEOID').agg(pl.len().alias('MDF_MomAge'))
 
-    hdfcounties_poplt5 = hdfcounties_poplt5[hdfcounties_poplt5['HDF_Children'] >=5]
-    mdfcounties_poplt5 = mdfcounties_poplt5[mdfcounties_poplt5['MDF_Children'] >=5]
+    hdfcounties_poplt5 = hdfcounties_poplt5.filter(pl.col('HDF_Children') >= 5)
+    mdfcounties_poplt5 = mdfcounties_poplt5.filter(pl.col('MDF_Children') >= 5)
 
-    hdfcounties =  pd.merge(hdfcounties_poplt5, hdfcounties_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
-    mdfcounties =  pd.merge(mdfcounties_poplt5, mdfcounties_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
+    hdfcounties =  hdfcounties_poplt5.join(hdfcounties_popfem1844, on='GEOID', how="left", coalesce=True)
+    mdfcounties =  mdfcounties_poplt5.join(mdfcounties_popfem1844, on='GEOID', how="left", coalesce=True)
 
-    hdfcounties['ChildrenNoMoms'] = np.where((hdfcounties['HDF_Children'] >= 5)&(hdfcounties['HDF_MomAge'] == 0), 1, 0)
-    mdfcounties['ChildrenNoMoms'] = np.where((mdfcounties['MDF_Children'] >= 5)&(mdfcounties['MDF_MomAge'] == 0), 1, 0)
+    hdfcounties = hdfcounties.with_columns(pl.when((pl.col('HDF_Children') >= 5)&(pl.col('HDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
+    mdfcounties = mdfcounties.with_columns(pl.when((pl.col('MDF_Children') >= 5)&(pl.col('MDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
 
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"HDF Children No Moms {race}".format(race = racealonedict.get(r)),'NumCells':len(hdfcounties), 'Inconsistent':np.sum(hdfcounties['ChildrenNoMoms'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"HDF Children No Moms {race}".format(race = racealonedict.get(r)),'NumCells':len(hdfcounties), 'Inconsistent':hdfcounties['ChildrenNoMoms'].sum()})
     outputdflist.append(ss)
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"MDF Children No Moms {race}".format(race = racealonedict.get(r)),'NumCells':len(mdfcounties), 'Inconsistent':np.sum(mdfcounties['ChildrenNoMoms'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"MDF Children No Moms {race}".format(race = racealonedict.get(r)),'NumCells':len(mdfcounties), 'Inconsistent':mdfcounties['ChildrenNoMoms'].sum()})
     outputdflist.append(ss)
 
 # Counties with at least 5 children under age 5 and no women age 18 through 44 Hispanic
-hdfcounties_poplt5 = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QAGE'] < 5)].group_by('CountyGEOID').size().reset_index(name='HDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_poplt5 = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QAGE'] < 5)].group_by('CountyGEOID').size().reset_index(name='MDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-hdfcounties_popfem1844 = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QSEX'] == '2')&(dfhdf['QAGE'] >= 18)&(dfhdf['QAGE'] < 45)].group_by('CountyGEOID').size().reset_index(name='HDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_popfem1844 = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QSEX'] == '2')&(dfmdf['QAGE'] >= 18)&(dfmdf['QAGE'] < 45)].group_by('CountyGEOID').size().reset_index(name='MDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
+hdfcounties_poplt5 = dfhdf().filter((pl.col('CENHISP') == '2')&(pl.col('QAGE') < 5).group_by('CountyGEOID').agg(pl.len().alias('HDF_Children'))
+mdfcounties_poplt5 = dfmdf().filter((pl.col('CENHISP') == '2')&(pl.col('QAGE') < 5).group_by('CountyGEOID').agg(pl.len().alias('MDF_Children'))
+hdfcounties_popfem1844 = dfhdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('CountyGEOID').agg(pl.len().alias('HDF_MomAge'))
+mdfcounties_popfem1844 = dfmdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('CountyGEOID').agg(pl.len().alias('MDF_MomAge'))
 
-hdfcounties_poplt5 = hdfcounties_poplt5[hdfcounties_poplt5['HDF_Children'] >=5]
-mdfcounties_poplt5 = mdfcounties_poplt5[mdfcounties_poplt5['MDF_Children'] >=5]
+hdfcounties_poplt5 = hdfcounties_poplt5.filter(pl.col('HDF_Children') >= 5)
+mdfcounties_poplt5 = mdfcounties_poplt5.filter(pl.col('MDF_Children') >= 5)
 
-hdfcounties =  pd.merge(hdfcounties_poplt5, hdfcounties_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
-mdfcounties =  pd.merge(mdfcounties_poplt5, mdfcounties_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
+hdfcounties =  hdfcounties_poplt5.join(hdfcounties_popfem1844, on='GEOID', how="left", coalesce=True)
+mdfcounties =  mdfcounties_poplt5.join(mdfcounties_popfem1844, on='GEOID', how="left", coalesce=True)
 
-hdfcounties['ChildrenNoMoms'] = np.where((hdfcounties['HDF_Children'] >= 5)&(hdfcounties['HDF_MomAge'] == 0), 1, 0)
-mdfcounties['ChildrenNoMoms'] = np.where((mdfcounties['MDF_Children'] >= 5)&(mdfcounties['MDF_MomAge'] == 0), 1, 0)
+hdfcounties = hdfcounties.with_columns(pl.when((pl.col('HDF_Children') >= 5)&(pl.col('HDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
+mdfcounties = mdfcounties.with_columns(pl.when((pl.col('MDF_Children') >= 5)&(pl.col('MDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
 
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms Hispanic','NumCells':len(hdfcounties), 'Inconsistent':np.sum(hdfcounties['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms Hispanic','NumCells':len(hdfcounties), 'Inconsistent':hdfcounties['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms Hispanic','NumCells':len(mdfcounties), 'Inconsistent':np.sum(mdfcounties['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms Hispanic','NumCells':len(mdfcounties), 'Inconsistent':mdfcounties['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
 
 # Counties with at least 5 children under age 5 and no women age 18 through 44 Non-Hispanic White
-hdfcounties_poplt5 = dfhdf[(dfhdf['CENHISP'] == '1')&(dfhdf['RACEALONE'] == 1)&(dfhdf['QAGE'] < 5)].group_by('CountyGEOID').size().reset_index(name='HDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_poplt5 = dfmdf[(dfmdf['CENHISP'] == '1')&(dfmdf['RACEALONE'] == 1)&(dfmdf['QAGE'] < 5)].group_by('CountyGEOID').size().reset_index(name='MDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-hdfcounties_popfem1844 = dfhdf[(dfhdf['CENHISP'] == '1')&(dfhdf['RACEALONE'] == 1)&(dfhdf['QSEX'] == '2')&(dfhdf['QAGE'] >= 18)&(dfhdf['QAGE'] < 45)].group_by('CountyGEOID').size().reset_index(name='HDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_popfem1844 = dfmdf[(dfmdf['CENHISP'] == '1')&(dfmdf['RACEALONE'] == 1)&(dfmdf['QSEX'] == '2')&(dfmdf['QAGE'] >= 18)&(dfmdf['QAGE'] < 45)].group_by('CountyGEOID').size().reset_index(name='MDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
+hdfcounties_poplt5 = dfhdf().filter((pl.col('CENHISP') == '1')&(pl.col('RACEALONE') == 1)&(pl.col('QAGE') < 5).group_by('CountyGEOID').agg(pl.len().alias('HDF_Children'))
+mdfcounties_poplt5 = dfmdf().filter((pl.col('CENHISP') == '1')&(pl.col('RACEALONE') == 1)&(pl.col('QAGE') < 5).group_by('CountyGEOID').agg(pl.len().alias('MDF_Children'))
+hdfcounties_popfem1844 = dfhdf().filter((pl.col('CENHISP') == '1')&(pl.col('RACEALONE') == 1)&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('CountyGEOID').agg(pl.len().alias('HDF_MomAge'))
+mdfcounties_popfem1844 = dfmdf().filter((pl.col('CENHISP') == '1')&(pl.col('RACEALONE') == 1)&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('CountyGEOID').agg(pl.len().alias('MDF_MomAge'))
 
-hdfcounties_poplt5 = hdfcounties_poplt5[hdfcounties_poplt5['HDF_Children'] >=5]
-mdfcounties_poplt5 = mdfcounties_poplt5[mdfcounties_poplt5['MDF_Children'] >=5]
+hdfcounties_poplt5 = hdfcounties_poplt5.filter(pl.col('HDF_Children') >= 5)
+mdfcounties_poplt5 = mdfcounties_poplt5.filter(pl.col('MDF_Children') >= 5)
 
-hdfcounties =  pd.merge(hdfcounties_poplt5, hdfcounties_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
-mdfcounties =  pd.merge(mdfcounties_poplt5, mdfcounties_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
+hdfcounties =  hdfcounties_poplt5.join(hdfcounties_popfem1844, on='GEOID', how="left", coalesce=True)
+mdfcounties =  mdfcounties_poplt5.join(mdfcounties_popfem1844, on='GEOID', how="left", coalesce=True)
 
-hdfcounties['ChildrenNoMoms'] = np.where((hdfcounties['HDF_Children'] >= 5)&(hdfcounties['HDF_MomAge'] == 0), 1, 0)
-mdfcounties['ChildrenNoMoms'] = np.where((mdfcounties['MDF_Children'] >= 5)&(mdfcounties['MDF_MomAge'] == 0), 1, 0)
+hdfcounties = hdfcounties.with_columns(pl.when((pl.col('HDF_Children') >= 5)&(pl.col('HDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
+mdfcounties = mdfcounties.with_columns(pl.when((pl.col('MDF_Children') >= 5)&(pl.col('MDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
 
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms Non-Hispanic White','NumCells':len(hdfcounties), 'Inconsistent':np.sum(hdfcounties['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms Non-Hispanic White','NumCells':len(hdfcounties), 'Inconsistent':hdfcounties['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms Non-Hispanic White','NumCells':len(mdfcounties), 'Inconsistent':np.sum(mdfcounties['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms Non-Hispanic White','NumCells':len(mdfcounties), 'Inconsistent':mdfcounties['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
 
 # Tracts with at least 5 children under age 5 and no women age 18 through 44 by race alone
 for r in racealonecats:
-    hdftracts_poplt5 = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QAGE'] < 5)].group_by('TractGEOID').size().reset_index(name='HDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-    mdftracts_poplt5 = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QAGE'] < 5)].group_by('TractGEOID').size().reset_index(name='MDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-    hdftracts_popfem1844 = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QSEX'] == '2')&(dfhdf['QAGE'] >= 18)&(dfhdf['QAGE'] < 45)].group_by('TractGEOID').size().reset_index(name='HDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-    mdftracts_popfem1844 = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QSEX'] == '2')&(dfmdf['QAGE'] >= 18)&(dfmdf['QAGE'] < 45)].group_by('TractGEOID').size().reset_index(name='MDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
+    hdftracts_poplt5 = dfhdf().filter((pl.col('RACEALONE') == r)&(pl.col('QAGE') < 5).group_by('TractGEOID').agg(pl.len().alias('HDF_Children')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+    mdftracts_poplt5 = dfmdf().filter((pl.col('RACEALONE') == r)&(pl.col('QAGE') < 5).group_by('TractGEOID').agg(pl.len().alias('MDF_Children')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+    hdftracts_popfem1844 = dfhdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('TractGEOID').agg(pl.len().alias('HDF_MomAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+    mdftracts_popfem1844 = dfmdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('TractGEOID').agg(pl.len().alias('MDF_MomAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
     
-    hdftracts_poplt5 = hdftracts_poplt5[hdftracts_poplt5['HDF_Children'] >=5]
-    mdftracts_poplt5 = mdftracts_poplt5[mdftracts_poplt5['MDF_Children'] >=5]
+    hdftracts_poplt5 = hdftracts_poplt5.filter(pl.col('HDF_Children') >= 5)
+    mdftracts_poplt5 = mdftracts_poplt5.filter(pl.col('MDF_Children') >= 5)
 
-    hdftracts =  pd.merge(hdftracts_poplt5, hdftracts_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
-    mdftracts =  pd.merge(mdftracts_poplt5, mdftracts_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
+    hdftracts =  hdftracts_poplt5.join(hdftracts_popfem1844, on='GEOID', how="left", coalesce=True)
+    mdftracts =  mdftracts_poplt5.join(mdftracts_popfem1844, on='GEOID', how="left", coalesce=True)
 
-    hdftracts['ChildrenNoMoms'] = np.where((hdftracts['HDF_Children'] >= 5)&(hdftracts['HDF_MomAge'] == 0), 1, 0)
-    mdftracts['ChildrenNoMoms'] = np.where((mdftracts['MDF_Children'] >= 5)&(mdftracts['MDF_MomAge'] == 0), 1, 0)
+    hdftracts = hdftracts.with_columns(pl.when((pl.col('HDF_Children') >= 5)&(pl.col('HDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
+    mdftracts = mdftracts.with_columns(pl.when((pl.col('MDF_Children') >= 5)&(pl.col('MDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
 
-    ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':"HDF Children No Moms {race}".format(race = racealonedict.get(r)),'NumCells':len(hdftracts), 'Inconsistent':np.sum(hdftracts['ChildrenNoMoms'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':"HDF Children No Moms {race}".format(race = racealonedict.get(r)),'NumCells':len(hdftracts), 'Inconsistent':hdftracts['ChildrenNoMoms'].sum()})
     outputdflist.append(ss)
-    ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':"MDF Children No Moms {race}".format(race = racealonedict.get(r)),'NumCells':len(mdftracts), 'Inconsistent':np.sum(mdftracts['ChildrenNoMoms'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':"MDF Children No Moms {race}".format(race = racealonedict.get(r)),'NumCells':len(mdftracts), 'Inconsistent':mdftracts['ChildrenNoMoms'].sum()})
     outputdflist.append(ss)
 
 # Tracts with at least 5 children under age 5 and no women age 18 through 44 Hispanic
-hdftracts_poplt5 = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QAGE'] < 5)].group_by('TractGEOID').size().reset_index(name='HDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-mdftracts_poplt5 = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QAGE'] < 5)].group_by('TractGEOID').size().reset_index(name='MDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-hdftracts_popfem1844 = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QSEX'] == '2')&(dfhdf['QAGE'] >= 18)&(dfhdf['QAGE'] < 45)].group_by('TractGEOID').size().reset_index(name='HDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-mdftracts_popfem1844 = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QSEX'] == '2')&(dfmdf['QAGE'] >= 18)&(dfmdf['QAGE'] < 45)].group_by('TractGEOID').size().reset_index(name='MDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
+hdftracts_poplt5 = dfhdf().filter((pl.col('CENHISP') == '2')&(pl.col('QAGE') < 5).group_by('TractGEOID').agg(pl.len().alias('HDF_Children')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdftracts_poplt5 = dfmdf().filter((pl.col('CENHISP') == '2')&(pl.col('QAGE') < 5).group_by('TractGEOID').agg(pl.len().alias('MDF_Children')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+hdftracts_popfem1844 = dfhdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('TractGEOID').agg(pl.len().alias('HDF_MomAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdftracts_popfem1844 = dfmdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('TractGEOID').agg(pl.len().alias('MDF_MomAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
 
-hdftracts_poplt5 = hdftracts_poplt5[hdftracts_poplt5['HDF_Children'] >=5]
-mdftracts_poplt5 = mdftracts_poplt5[mdftracts_poplt5['MDF_Children'] >=5]
+hdftracts_poplt5 = hdftracts_poplt5.filter(pl.col('HDF_Children') >= 5)
+mdftracts_poplt5 = mdftracts_poplt5.filter(pl.col('MDF_Children') >= 5)
 
-hdftracts =  pd.merge(hdftracts_poplt5, hdftracts_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
-mdftracts =  pd.merge(mdftracts_poplt5, mdftracts_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
+hdftracts =  hdftracts_poplt5.join(hdftracts_popfem1844, on='GEOID', how="left", coalesce=True)
+mdftracts =  mdftracts_poplt5.join(mdftracts_popfem1844, on='GEOID', how="left", coalesce=True)
 
-hdftracts['ChildrenNoMoms'] = np.where((hdftracts['HDF_Children'] >= 5)&(hdftracts['HDF_MomAge'] == 0), 1, 0)
-mdftracts['ChildrenNoMoms'] = np.where((mdftracts['MDF_Children'] >= 5)&(mdftracts['MDF_MomAge'] == 0), 1, 0)
+hdftracts = hdftracts.with_columns(pl.when((pl.col('HDF_Children') >= 5)&(pl.col('HDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
+mdftracts = mdftracts.with_columns(pl.when((pl.col('MDF_Children') >= 5)&(pl.col('MDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
 
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms Hispanic','NumCells':len(hdftracts), 'Inconsistent':np.sum(hdftracts['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms Hispanic','NumCells':len(hdftracts), 'Inconsistent':hdftracts['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms Hispanic','NumCells':len(mdftracts), 'Inconsistent':np.sum(mdftracts['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms Hispanic','NumCells':len(mdftracts), 'Inconsistent':mdftracts['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
 
 # Tracts with at least 5 children under age 5 and no women age 18 through 44 Non-Hispanic White
-hdftracts_poplt5 = dfhdf[(dfhdf['RACEALONE'] == 1)&(dfhdf['CENHISP'] == '1')&(dfhdf['QAGE'] < 5)].group_by('TractGEOID').size().reset_index(name='HDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-mdftracts_poplt5 = dfmdf[(dfmdf['RACEALONE'] == 1)&(dfmdf['CENHISP'] == '1')&(dfmdf['QAGE'] < 5)].group_by('TractGEOID').size().reset_index(name='MDF_Children').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-hdftracts_popfem1844 = dfhdf[(dfhdf['RACEALONE'] == 1)&(dfhdf['CENHISP'] == '1')&(dfhdf['QSEX'] == '2')&(dfhdf['QAGE'] >= 18)&(dfhdf['QAGE'] < 45)].group_by('TractGEOID').size().reset_index(name='HDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-mdftracts_popfem1844 = dfmdf[(dfmdf['RACEALONE'] == 1)&(dfmdf['CENHISP'] == '1')&(dfmdf['QSEX'] == '2')&(dfmdf['QAGE'] >= 18)&(dfmdf['QAGE'] < 45)].group_by('TractGEOID').size().reset_index(name='MDF_MomAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
+hdftracts_poplt5 = dfhdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QAGE') < 5).group_by('TractGEOID').agg(pl.len().alias('HDF_Children')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdftracts_poplt5 = dfmdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QAGE') < 5).group_by('TractGEOID').agg(pl.len().alias('MDF_Children')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+hdftracts_popfem1844 = dfhdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('TractGEOID').agg(pl.len().alias('HDF_MomAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdftracts_popfem1844 = dfmdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '2')&(pl.col('QAGE') >= 18)&(pl.col('QAGE') < 45).group_by('TractGEOID').agg(pl.len().alias('MDF_MomAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
 
-hdftracts_poplt5 = hdftracts_poplt5[hdftracts_poplt5['HDF_Children'] >=5]
-mdftracts_poplt5 = mdftracts_poplt5[mdftracts_poplt5['MDF_Children'] >=5]
+hdftracts_poplt5 = hdftracts_poplt5.filter(pl.col('HDF_Children') >= 5)
+mdftracts_poplt5 = mdftracts_poplt5.filter(pl.col('MDF_Children') >= 5)
 
-hdftracts =  pd.merge(hdftracts_poplt5, hdftracts_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
-mdftracts =  pd.merge(mdftracts_poplt5, mdftracts_popfem1844, on='GEOID', how = 'left', validate = mergeValidation)
+hdftracts =  hdftracts_poplt5.join(hdftracts_popfem1844, on='GEOID', how="left", coalesce=True)
+mdftracts =  mdftracts_poplt5.join(mdftracts_popfem1844, on='GEOID', how="left", coalesce=True)
 
-hdftracts['ChildrenNoMoms'] = np.where((hdftracts['HDF_Children'] >= 5)&(hdftracts['HDF_MomAge'] == 0), 1, 0)
-mdftracts['ChildrenNoMoms'] = np.where((mdftracts['MDF_Children'] >= 5)&(mdftracts['MDF_MomAge'] == 0), 1, 0)
+hdftracts = hdftracts.with_columns(pl.when((pl.col('HDF_Children') >= 5)&(pl.col('HDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
+mdftracts = mdftracts.with_columns(pl.when((pl.col('MDF_Children') >= 5)&(pl.col('MDF_MomAge') == 0)).then(1).otherwise(0).alias('ChildrenNoMoms'))
 
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms Non-Hispanic White','NumCells':len(hdftracts), 'Inconsistent':np.sum(hdftracts['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF Children No Moms Non-Hispanic White','NumCells':len(hdftracts), 'Inconsistent':hdftracts['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms Non-Hispanic White','NumCells':len(mdftracts), 'Inconsistent':np.sum(mdftracts['ChildrenNoMoms'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF Children No Moms Non-Hispanic White','NumCells':len(mdftracts), 'Inconsistent':mdftracts['ChildrenNoMoms'].sum()})
 outputdflist.append(ss)
 
 # Tracts with at least 5 people and all of the same sex
-hdftracts_males = dfhdf[(dfhdf['QSEX'] == '1')].group_by('TractGEOID').size().reset_index(name='HDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-mdftracts_males = dfmdf[(dfmdf['QSEX'] == '1')].group_by('TractGEOID').size().reset_index(name='MDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-hdftracts_females = dfhdf[(dfhdf['QSEX'] == '2')].group_by('TractGEOID').size().reset_index(name='HDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-mdftracts_females = dfmdf[(dfmdf['QSEX'] == '2')].group_by('TractGEOID').size().reset_index(name='MDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
+hdftracts_males = dfhdf().filter(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.len().alias('HDF_Males')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdftracts_males = dfmdf().filter(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.len().alias('MDF_Males')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+hdftracts_females = dfhdf().filter(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.len().alias('HDF_Females')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdftracts_females = dfmdf().filter(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.len().alias('MDF_Females')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
 
-hdftracts =  pd.merge(hdftracts_males, hdftracts_females, on='GEOID', how = 'outer', validate = mergeValidation)
-mdftracts =  pd.merge(mdftracts_males, mdftracts_females, on='GEOID', how = 'outer', validate = mergeValidation)
+hdftracts =  hdftracts_males.join(hdftracts_females, on='GEOID', how="full", coalesce=True)
+mdftracts =  mdftracts_males.join(mdftracts_females, on='GEOID', how="full", coalesce=True)
 
-hdftracts['Total'] = hdftracts['HDF_Females'] + hdftracts['HDF_Males']
-mdftracts['Total'] = mdftracts['MDF_Females'] + mdftracts['MDF_Males']
+hdftracts = hdftracts.with_columns((pl.col('HDF_Females') + pl.col('HDF_Males')).alias('Total'))
+mdftracts = mdftracts.with_columns((pl.col('MDF_Females') + pl.col('MDF_Males')).alias('Total'))
 
-hdftracts = hdftracts[hdftracts['Total'] >=5]
-mdftracts = mdftracts[mdftracts['Total'] >=5]
+hdftracts = hdftracts.filter(pl.col('Total') >= 5)
+mdftracts = mdftracts.filter(pl.col('Total') >= 5)
 
-hdftracts['AllSameSex'] = np.where((hdftracts['HDF_Males'] == 0)|(hdftracts['HDF_Females'] == 0), 1, 0)
-mdftracts['AllSameSex'] = np.where((mdftracts['MDF_Males'] == 0)|(mdftracts['MDF_Females'] == 0), 1, 0)
+hdftracts = hdftracts.with_columns(pl.when((pl.col('HDF_Males') == 0)|(pl.col('HDF_Females') == 0)).then(1).otherwise(0).alias('AllSameSex'))
+mdftracts = mdftracts.with_columns(pl.when((pl.col('MDF_Males') == 0)|(pl.col('MDF_Females') == 0)).then(1).otherwise(0).alias('AllSameSex'))
 
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF All Same Sex','NumCells':len(hdftracts), 'Inconsistent':np.sum(hdftracts['AllSameSex'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF All Same Sex','NumCells':len(hdftracts), 'Inconsistent':hdftracts['AllSameSex'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF All Same Sex','NumCells':len(mdftracts), 'Inconsistent':np.sum(mdftracts['AllSameSex'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF All Same Sex','NumCells':len(mdftracts), 'Inconsistent':mdftracts['AllSameSex'].sum()})
 outputdflist.append(ss)
 
 # Tracts with at least one of the single years of age between 0 and 17 by sex has a zero count
-hdftracts_totunder18 = dfhdf[(dfhdf['QAGE'] < 18)].group_by('TractGEOID').size().reset_index(name='HDF_TotUnder18').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
-mdftracts_totunder18 = dfmdf[(dfmdf['QAGE'] < 18)].group_by('TractGEOID').size().reset_index(name='MDF_TotUnder18').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(alltractsindex, fill_value=0).reset_index()
+hdftracts_totunder18 = dfhdf().filter(pl.col('QAGE') < 18).group_by('TractGEOID').agg(pl.len().alias('HDF_TotUnder18')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdftracts_totunder18 = dfmdf().filter(pl.col('QAGE') < 18).group_by('TractGEOID').agg(pl.len().alias('MDF_TotUnder18')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': alltractsindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
 
-hdftracts_totunder18gt200 = hdftracts_totunder18.loc[hdftracts_totunder18['HDF_TotUnder18'] > 200,'GEOID'].tolist()
-mdftracts_totunder18gt200 = mdftracts_totunder18.loc[mdftracts_totunder18['MDF_TotUnder18'] > 200,'GEOID'].tolist()
+hdftracts_totunder18gt200 = hdftracts_totunder18.filter(pl.col('HDF_TotUnder18') > 200).get_column('GEOID').to_list()
+mdftracts_totunder18gt200 = mdftracts_totunder18.filter(pl.col('MDF_TotUnder18') > 200).get_column('GEOID').to_list()
 
-hdftract_1yageunder18_index = pd.MultiIndex.from_product([hdftracts_totunder18gt200, list(range(0,18))], names = ['GEOID','QAGE'])
-mdftract_1yageunder18_index = pd.MultiIndex.from_product([mdftracts_totunder18gt200, list(range(0,18))], names = ['GEOID','QAGE'])
+# hdftract_1yageunder18_index = MultiIndex (handled via join below)
+# mdftract_1yageunder18_index = MultiIndex (handled via join below)
 
-hdftracts_under18 = dfhdf[(dfhdf['QAGE'] < 18)].group_by(['TABBLKST','TABBLKCOU','TABTRACTCE','QAGE']).agg(HDF_Population = pl.len())
-mdftracts_under18 = dfmdf[(dfmdf['QAGE'] < 18)].group_by(['TABBLKST','TABBLKCOU','TABTRACTCE','QAGE']).agg(MDF_Population = pl.len())
+hdftracts_under18 = dfhdf().filter(pl.col('QAGE') < 18).group_by(['TractGEOID', 'QAGE']).agg(HDF_Population = pl.len())
+mdftracts_under18 = dfmdf().filter(pl.col('QAGE') < 18).group_by(['TractGEOID', 'QAGE']).agg(MDF_Population = pl.len())
 
-hdftracts_under18['ZeroAge'] = np.where((hdftracts_under18['HDF_Population'] == 0), 1, 0)
-mdftracts_under18['ZeroAge'] = np.where((mdftracts_under18['MDF_Population'] == 0), 1, 0)
+hdftracts_under18 = hdftracts_under18.with_columns(pl.when((pl.col('HDF_Population') == 0)).then(1).otherwise(0).alias('ZeroAge'))
+mdftracts_under18 = mdftracts_under18.with_columns(pl.when((pl.col('MDF_Population') == 0)).then(1).otherwise(0).alias('ZeroAge'))
 
-hdftracts_anyzeros = hdftracts_under18.group_by('GEOID')['ZeroAge'].max()
-mdftracts_anyzeros = mdftracts_under18.group_by('GEOID')['ZeroAge'].max()
+hdftracts_anyzeros = hdftracts_under18.group_by('TractGEOID').agg(pl.col('ZeroAge').max())
+mdftracts_anyzeros = mdftracts_under18.group_by('TractGEOID').agg(pl.col('ZeroAge').max())
 
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF Zero Age','NumCells':len(hdftracts_anyzeros), 'Inconsistent':np.sum(hdftracts_anyzeros)}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF Zero Age','NumCells':len(hdftracts_anyzeros), 'Inconsistent':hdftracts_anyzeros['ZeroAge'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF Zero Age','NumCells':len(mdftracts_anyzeros), 'Inconsistent':np.sum(mdftracts_anyzeros)}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF Zero Age','NumCells':len(mdftracts_anyzeros), 'Inconsistent':mdftracts_anyzeros['ZeroAge'].sum()})
 outputdflist.append(ss)
 
-hdftracts_under18.to_csv(f"{OUTPUTDIR}/hdftracts_under18.csv", index=False)
-hdftracts_anyzeros.to_csv(f"{OUTPUTDIR}/hdftracts_under18anyzeros.csv", index=False)
+hdftracts_under18.write_csv(f"{OUTPUTDIR}/hdftracts_under18.csv")
+hdftracts_anyzeros.write_csv(f"{OUTPUTDIR}/hdftracts_under18anyzeros.csv")
 
 # Blocks with population all 17 or younger 
-hdfblocks_gqpop = dfhdf[dfhdf['RTYPE']=="5"].group_by(['TABBLKST','TABBLKCOU','TABTRACTCE', 'TABBLK']).size().reset_index(name='HDF_GQPopulation').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE + x.TABBLK).drop(columns = ['TABBLKST', 'TABBLKCOU', 'TABTRACTCE', 'TABBLK']).set_index('GEOID').reindex(allblocksindex, fill_value=0).reset_index()
-mdfblocks_gqpop = dfmdf[dfmdf['RTYPE']=="5"].group_by(['TABBLKST','TABBLKCOU','TABTRACTCE', 'TABBLK']).size().reset_index(name='MDF_GQPopulation').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE + x.TABBLK).drop(columns = ['TABBLKST', 'TABBLKCOU', 'TABTRACTCE', 'TABBLK']).set_index('GEOID').reindex(allblocksindex, fill_value=0).reset_index()
+hdfblocks_gqpop = dfhdf().filter(pl.col('RTYPE') == "5").group_by('BlockGEOID').agg(pl.len().alias('HDF_GQPopulation')).join(pl.DataFrame({'GEOID': allblocksindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
+mdfblocks_gqpop = dfmdf().filter(pl.col('RTYPE') == "5").group_by('BlockGEOID').agg(pl.len().alias('MDF_GQPopulation')).join(pl.DataFrame({'GEOID': allblocksindex}), on='GEOID', how='right', coalesce=True).fill_null(0)
 
-hdfblocks_nogqs = hdfblocks_gqpop.loc[hdfblocks_gqpop['HDF_GQPopulation'] == 0,'GEOID'].tolist()
-mdfblocks_nogqs = mdfblocks_gqpop.loc[mdfblocks_gqpop['MDF_GQPopulation'] == 0,'GEOID'].tolist()
+hdfblocks_nogqs = hdfblocks_gqpop.filter(pl.col('HDF_GQPopulation') == 0).get_column('GEOID').to_list()
+mdfblocks_nogqs = mdfblocks_gqpop.filter(pl.col('MDF_GQPopulation') == 0).get_column('GEOID').to_list()
 
 del mdfblocks_gqpop
 del hdfblocks_gqpop
@@ -2033,8 +2014,8 @@ del hdfblocks_gqpop
 hdfblocks_allpop = dfhdf().group_by(['TABBLKST','TABBLKCOU','TABTRACTCE', 'TABBLK']).agg(HDF_Population = pl.len())
 mdfblocks_allpop = dfmdf().group_by(['TABBLKST','TABBLKCOU','TABTRACTCE', 'TABBLK']).agg(MDF_Population = pl.len())
 
-hdfblocks_somepop = hdfblocks_allpop.loc[hdfblocks_allpop['HDF_Population'] > 0,'GEOID'].tolist()
-mdfblocks_somepop = mdfblocks_allpop.loc[mdfblocks_allpop['MDF_Population'] > 0,'GEOID'].tolist()
+hdfblocks_somepop = hdfblocks_allpop.filter(pl.col('HDF_Population') > 0).get_column('GEOID').to_list()
+mdfblocks_somepop = mdfblocks_allpop.filter(pl.col('MDF_Population') > 0).get_column('GEOID').to_list()
 
 del hdfblocks_allpop
 del mdfblocks_allpop
@@ -2042,8 +2023,8 @@ del mdfblocks_allpop
 hdfblocks_nogqs_somepop = set(hdfblocks_nogqs).intersection(hdfblocks_somepop)
 mdfblocks_nogqs_somepop = set(mdfblocks_nogqs).intersection(mdfblocks_somepop)
 
-hdfblocks_nogqs_index = pd.Index(hdfblocks_nogqs_somepop, name='BlockGEOID')
-mdfblocks_nogqs_index = pd.Index(mdfblocks_nogqs_somepop, name='BlockGEOID')
+hdfblocks_nogqs_index = hdfblocks_nogqs_somepop
+mdfblocks_nogqs_index = mdfblocks_nogqs_somepop
 
 del hdfblocks_nogqs
 del mdfblocks_nogqs
@@ -2059,23 +2040,23 @@ del mdfblocks_nogqs_somepop
 hdfblocks_totpop = dfhdf().group_by(['BlockGEOID']).agg(HDF_Population = pl.len())
 mdfblocks_totpop = dfmdf().group_by(['BlockGEOID']).agg(MDF_Population = pl.len())
 
-hdfblocks_18 = dfhdf[dfhdf['QAGE'] < 18].group_by(['BlockGEOID']).size().reset_index(name='HDF_Under18').set_index('BlockGEOID').reindex(hdfblocks_nogqs_index, fill_value=0).reset_index()
-mdfblocks_18 = dfmdf[dfmdf['QAGE'] < 18].group_by(['BlockGEOID']).size().reset_index(name='MDF_Under18').set_index('BlockGEOID').reindex(mdfblocks_nogqs_index, fill_value=0).reset_index()
+hdfblocks_18 = dfhdf().filter(pl.col('QAGE') < 18).group_by('BlockGEOID').agg(pl.len().alias('HDF_Under18')).join(pl.DataFrame({'BlockGEOID': hdfblocks_nogqs_index}), on='BlockGEOID', how='right', coalesce=True).fill_null(0)
+mdfblocks_18 = dfmdf().filter(pl.col('QAGE') < 18).group_by('BlockGEOID').agg(pl.len().alias('MDF_Under18')).join(pl.DataFrame({'BlockGEOID': mdfblocks_nogqs_index}), on='BlockGEOID', how='right', coalesce=True).fill_null(0)
 
-hdfblocks =  pd.merge(hdfblocks_totpop, hdfblocks_18, on='BlockGEOID', how = 'inner', validate = mergeValidation)
-mdfblocks =  pd.merge(mdfblocks_totpop, mdfblocks_18, on='BlockGEOID', how = 'inner', validate = mergeValidation)
+hdfblocks =  hdfblocks_totpop.join(hdfblocks_18, on='BlockGEOID', how="inner", coalesce=True)
+mdfblocks =  mdfblocks_totpop.join(mdfblocks_18, on='BlockGEOID', how="inner", coalesce=True)
 
 del hdfblocks_18
 del mdfblocks_18
 del hdfblocks_totpop
 del mdfblocks_totpop
 
-hdfblocks['Zero18andOver'] = np.where((hdfblocks['HDF_Population'] > 0)&(hdfblocks['HDF_Under18'] == hdfblocks['HDF_Population']), 1, 0)
-mdfblocks['Zero18andOver'] = np.where((mdfblocks['MDF_Population'] > 0)&(mdfblocks['MDF_Under18'] == mdfblocks['MDF_Population']), 1, 0)
+hdfblocks = hdfblocks.with_columns(pl.when((pl.col('HDF_Population') > 0)&(pl.col('HDF_Under18') == pl.col('HDF_Population'))).then(1).otherwise(0).alias('Zero18andOver'))
+mdfblocks = mdfblocks.with_columns(pl.when((pl.col('MDF_Population') > 0)&(pl.col('MDF_Under18') == pl.col('MDF_Population'))).then(1).otherwise(0).alias('Zero18andOver'))
 
-ss = pd.DataFrame({'Geography':'Block', 'Size_Category':'All', 'Characteristic':'HDF Everyone Under 18','NumCells':len(hdfblocks), 'Inconsistent':np.sum(hdfblocks['Zero18andOver'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Block', 'Size_Category':'All', 'Characteristic':'HDF Everyone Under 18','NumCells':len(hdfblocks), 'Inconsistent':hdfblocks['Zero18andOver'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'Block', 'Size_Category':'All', 'Characteristic':'MDF Everyone Under 18','NumCells':len(mdfblocks), 'Inconsistent':np.sum(mdfblocks['Zero18andOver'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Block', 'Size_Category':'All', 'Characteristic':'MDF Everyone Under 18','NumCells':len(mdfblocks), 'Inconsistent':mdfblocks['Zero18andOver'].sum()})
 outputdflist.append(ss)
 
 del hdfblocks
@@ -2085,273 +2066,273 @@ del mdfblocks_nogqs_index
 
 
 # Counties where median age of the men is significantly different (equal to or greater than 20 years) from the median age of women
-hdfcounties_males = dfhdf[(dfhdf['QSEX'] == '1')].group_by('CountyGEOID').size().reset_index(name='HDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_males = dfmdf[(dfmdf['QSEX'] == '1')].group_by('CountyGEOID').size().reset_index(name='MDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-hdfcounties_females = dfhdf[(dfhdf['QSEX'] == '2')].group_by('CountyGEOID').size().reset_index(name='HDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_females = dfmdf[(dfmdf['QSEX'] == '2')].group_by('CountyGEOID').size().reset_index(name='MDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
+hdfcounties_males = dfhdf().filter(pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.len().alias('HDF_Males'))
+mdfcounties_males = dfmdf().filter(pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.len().alias('MDF_Males'))
+hdfcounties_females = dfhdf().filter(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.len().alias('HDF_Females'))
+mdfcounties_females = dfmdf().filter(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.len().alias('MDF_Females'))
 
-hdfcounties_gt5males = hdfcounties_males.loc[hdfcounties_males['HDF_Males'] >=5, 'GEOID'].tolist()
-mdfcounties_gt5males = mdfcounties_males.loc[mdfcounties_males['MDF_Males'] >=5, 'GEOID'].tolist()
-hdfcounties_gt5females = hdfcounties_females.loc[hdfcounties_females['HDF_Females'] >=5, 'GEOID'].tolist()
-mdfcounties_gt5females = mdfcounties_females.loc[mdfcounties_females['MDF_Females'] >=5, 'GEOID'].tolist()
+hdfcounties_gt5males = hdfcounties_males.filter(pl.col('HDF_Males') >= 5).get_column('GEOID').to_list()
+mdfcounties_gt5males = mdfcounties_males.filter(pl.col('MDF_Males') >= 5).get_column('GEOID').to_list()
+hdfcounties_gt5females = hdfcounties_females.filter(pl.col('HDF_Females') >= 5).get_column('GEOID').to_list()
+mdfcounties_gt5females = mdfcounties_females.filter(pl.col('MDF_Females') >= 5).get_column('GEOID').to_list()
 
 hdfcounties_gt5bothsex =  list(set(hdfcounties_gt5males).intersection(hdfcounties_gt5females))
 mdfcounties_gt5bothsex =  list(set(mdfcounties_gt5males).intersection(mdfcounties_gt5females))
 
-hdfcounties_gt5bothsex_index = pd.Index(hdfcounties_gt5bothsex, name='GEOID')
-mdfcounties_gt5bothsex_index = pd.Index(mdfcounties_gt5bothsex, name='GEOID')
+hdfcounties_gt5bothsex_index = hdfcounties_gt5bothsex
+mdfcounties_gt5bothsex_index = mdfcounties_gt5bothsex
 
-hdfcounties_malemedage = dfhdf[(dfhdf['QSEX'] == '1')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(hdfcounties_gt5bothsex_index).reset_index()
-mdfcounties_malemedage = dfmdf[(dfmdf['QSEX'] == '1')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(mdfcounties_gt5bothsex_index).reset_index()
-hdfcounties_femalemedage = dfhdf[(dfhdf['QSEX'] == '2')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(hdfcounties_gt5bothsex_index).reset_index()
-mdfcounties_femalemedage = dfmdf[(dfmdf['QSEX'] == '2')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(mdfcounties_gt5bothsex_index).reset_index()
+hdfcounties_malemedage = dfhdf().filter(pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_MaleAge')).collect().join(pl.DataFrame({'GEOID': hdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdfcounties_malemedage = dfmdf().filter(pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_MaleAge')).collect().join(pl.DataFrame({'GEOID': mdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+hdfcounties_femalemedage = dfhdf().filter(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_FemaleAge')).collect().join(pl.DataFrame({'GEOID': hdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdfcounties_femalemedage = dfmdf().filter(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_FemaleAge')).collect().join(pl.DataFrame({'GEOID': mdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
 
-hdfcounties =  pd.merge(hdfcounties_malemedage, hdfcounties_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
-mdfcounties =  pd.merge(mdfcounties_malemedage, mdfcounties_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
+hdfcounties =  hdfcounties_malemedage.join(hdfcounties_femalemedage, on='GEOID', how="inner", coalesce=True)
+mdfcounties =  mdfcounties_malemedage.join(mdfcounties_femalemedage, on='GEOID', how="inner", coalesce=True)
 
-hdfcounties['BigAgeDiff'] = np.where(np.abs(hdfcounties['HDF_MaleAge'] - hdfcounties['HDF_FemaleAge']) >= 20, 1, 0)
-mdfcounties['BigAgeDiff'] = np.where(np.abs(mdfcounties['MDF_MaleAge'] - mdfcounties['MDF_FemaleAge']) >= 20, 1, 0)
+hdfcounties = hdfcounties.with_columns(pl.when((pl.col('HDF_MaleAge').abs() - pl.col('HDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
+mdfcounties = mdfcounties.with_columns(pl.when((pl.col('MDF_MaleAge').abs() - pl.col('MDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
 
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'HDF 20+ Year Median Age Diff','NumCells':len(hdfcounties), 'Inconsistent':np.sum(hdfcounties['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'HDF 20+ Year Median Age Diff','NumCells':len(hdfcounties), 'Inconsistent':hdfcounties['BigAgeDiff'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'MDF 20+ Year Median Age Diff','NumCells':len(mdfcounties), 'Inconsistent':np.sum(mdfcounties['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':'MDF 20+ Year Median Age Diff','NumCells':len(mdfcounties), 'Inconsistent':mdfcounties['BigAgeDiff'].sum()})
 outputdflist.append(ss)
 
 # Counties where median age of the men is significantly different (equal to or greater than 20 years) from the median age of women, by major race group
 for r in racealonecats:
-    hdfcounties_males = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QSEX'] == '1')].group_by('CountyGEOID').size().reset_index(name='HDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-    mdfcounties_males = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QSEX'] == '1')].group_by('CountyGEOID').size().reset_index(name='MDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-    hdfcounties_females = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QSEX'] == '2')].group_by('CountyGEOID').size().reset_index(name='HDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-    mdfcounties_females = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QSEX'] == '2')].group_by('CountyGEOID').size().reset_index(name='MDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
+    hdfcounties_males = dfhdf().filter((pl.col('RACEALONE') == r), (pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.len().alias('HDF_Males'))
+    mdfcounties_males = dfmdf().filter((pl.col('RACEALONE') == r), (pl.col('QSEX') == '1')).group_by('CountyGEOID').agg(pl.len().alias('MDF_Males'))
+    hdfcounties_females = dfhdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.len().alias('HDF_Females'))
+    mdfcounties_females = dfmdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.len().alias('MDF_Females'))
 
-    hdfcounties_gt5males = hdfcounties_males.loc[hdfcounties_males['HDF_Males'] >=5, 'GEOID'].tolist()
-    mdfcounties_gt5males = mdfcounties_males.loc[mdfcounties_males['MDF_Males'] >=5, 'GEOID'].tolist()
-    hdfcounties_gt5females = hdfcounties_females.loc[hdfcounties_females['HDF_Females'] >=5, 'GEOID'].tolist()
-    mdfcounties_gt5females = mdfcounties_females.loc[mdfcounties_females['MDF_Females'] >=5, 'GEOID'].tolist()
+    hdfcounties_gt5males = hdfcounties_males.filter(pl.col('HDF_Males') >= 5).get_column('GEOID').to_list()
+    mdfcounties_gt5males = mdfcounties_males.filter(pl.col('MDF_Males') >= 5).get_column('GEOID').to_list()
+    hdfcounties_gt5females = hdfcounties_females.filter(pl.col('HDF_Females') >= 5).get_column('GEOID').to_list()
+    mdfcounties_gt5females = mdfcounties_females.filter(pl.col('MDF_Females') >= 5).get_column('GEOID').to_list()
 
     hdfcounties_gt5bothsex =  list(set(hdfcounties_gt5males).intersection(hdfcounties_gt5females))
     mdfcounties_gt5bothsex =  list(set(mdfcounties_gt5males).intersection(mdfcounties_gt5females))
 
-    hdfcounties_gt5bothsex_index = pd.Index(hdfcounties_gt5bothsex, name='GEOID')
-    mdfcounties_gt5bothsex_index = pd.Index(mdfcounties_gt5bothsex, name='GEOID')
+    hdfcounties_gt5bothsex_index = hdfcounties_gt5bothsex
+    mdfcounties_gt5bothsex_index = mdfcounties_gt5bothsex
 
-    hdfcounties_malemedage = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QSEX'] == '1')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(hdfcounties_gt5bothsex_index).reset_index()
-    mdfcounties_malemedage = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QSEX'] == '1')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(mdfcounties_gt5bothsex_index).reset_index()
-    hdfcounties_femalemedage = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QSEX'] == '2')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(hdfcounties_gt5bothsex_index).reset_index()
-    mdfcounties_femalemedage = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QSEX'] == '2')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(mdfcounties_gt5bothsex_index).reset_index()
+    hdfcounties_malemedage = dfhdf().filter((pl.col('RACEALONE') == r), (pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_MaleAge')).collect().join(pl.DataFrame({'GEOID': hdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+    mdfcounties_malemedage = dfmdf().filter((pl.col('RACEALONE') == r), (pl.col('QSEX') == '1')).group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_MaleAge')).collect().join(pl.DataFrame({'GEOID': mdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+    hdfcounties_femalemedage = dfhdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_FemaleAge')).collect().join(pl.DataFrame({'GEOID': hdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+    mdfcounties_femalemedage = dfmdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_FemaleAge')).collect().join(pl.DataFrame({'GEOID': mdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
 
-    hdfcounties =  pd.merge(hdfcounties_malemedage, hdfcounties_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
-    mdfcounties =  pd.merge(mdfcounties_malemedage, mdfcounties_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
+    hdfcounties =  hdfcounties_malemedage.join(hdfcounties_femalemedage, on='GEOID', how="inner", coalesce=True)
+    mdfcounties =  mdfcounties_malemedage.join(mdfcounties_femalemedage, on='GEOID', how="inner", coalesce=True)
 
-    hdfcounties['BigAgeDiff'] = np.where(np.abs(hdfcounties['HDF_MaleAge'] - hdfcounties['HDF_FemaleAge']) >= 20, 1, 0)
-    mdfcounties['BigAgeDiff'] = np.where(np.abs(mdfcounties['MDF_MaleAge'] - mdfcounties['MDF_FemaleAge']) >= 20, 1, 0)
+    hdfcounties = hdfcounties.with_columns(pl.when((pl.col('HDF_MaleAge').abs() - pl.col('HDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
+    mdfcounties = mdfcounties.with_columns(pl.when((pl.col('MDF_MaleAge').abs() - pl.col('MDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
 
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"HDF 20+ Year Median Age Diff {race}".format(race = racealonedict.get(r)),'NumCells':len(hdfcounties), 'Inconsistent':np.sum(hdfcounties['BigAgeDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"HDF 20+ Year Median Age Diff {race}".format(race = racealonedict.get(r)),'NumCells':len(hdfcounties), 'Inconsistent':hdfcounties['BigAgeDiff'].sum()})
     outputdflist.append(ss)
-    ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"MDF 20+ Year Median Age Diff {race}".format(race = racealonedict.get(r)),'NumCells':len(mdfcounties), 'Inconsistent':np.sum(mdfcounties['BigAgeDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"MDF 20+ Year Median Age Diff {race}".format(race = racealonedict.get(r)),'NumCells':len(mdfcounties), 'Inconsistent':mdfcounties['BigAgeDiff'].sum()})
     outputdflist.append(ss)
 
 # Counties where median age of the men is significantly different (equal to or greater than 20 years) from the median age of women Hispanic
-hdfcounties_males = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QSEX'] == '1')].group_by('CountyGEOID').size().reset_index(name='HDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_males = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QSEX'] == '1')].group_by('CountyGEOID').size().reset_index(name='MDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-hdfcounties_females = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QSEX'] == '2')].group_by('CountyGEOID').size().reset_index(name='HDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_females = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QSEX'] == '2')].group_by('CountyGEOID').size().reset_index(name='MDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
+hdfcounties_males = dfhdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.len().alias('HDF_Males'))
+mdfcounties_males = dfmdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.len().alias('MDF_Males'))
+hdfcounties_females = dfhdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.len().alias('HDF_Females'))
+mdfcounties_females = dfmdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.len().alias('MDF_Females'))
 
-hdfcounties_gt5males = hdfcounties_males.loc[hdfcounties_males['HDF_Males'] >=5, 'GEOID'].tolist()
-mdfcounties_gt5males = mdfcounties_males.loc[mdfcounties_males['MDF_Males'] >=5, 'GEOID'].tolist()
-hdfcounties_gt5females = hdfcounties_females.loc[hdfcounties_females['HDF_Females'] >=5, 'GEOID'].tolist()
-mdfcounties_gt5females = mdfcounties_females.loc[mdfcounties_females['MDF_Females'] >=5, 'GEOID'].tolist()
+hdfcounties_gt5males = hdfcounties_males.filter(pl.col('HDF_Males') >= 5).get_column('GEOID').to_list()
+mdfcounties_gt5males = mdfcounties_males.filter(pl.col('MDF_Males') >= 5).get_column('GEOID').to_list()
+hdfcounties_gt5females = hdfcounties_females.filter(pl.col('HDF_Females') >= 5).get_column('GEOID').to_list()
+mdfcounties_gt5females = mdfcounties_females.filter(pl.col('MDF_Females') >= 5).get_column('GEOID').to_list()
 
 hdfcounties_gt5bothsex =  list(set(hdfcounties_gt5males).intersection(hdfcounties_gt5females))
 mdfcounties_gt5bothsex =  list(set(mdfcounties_gt5males).intersection(mdfcounties_gt5females))
 
-hdfcounties_gt5bothsex_index = pd.Index(hdfcounties_gt5bothsex, name='GEOID')
-mdfcounties_gt5bothsex_index = pd.Index(mdfcounties_gt5bothsex, name='GEOID')
+hdfcounties_gt5bothsex_index = hdfcounties_gt5bothsex
+mdfcounties_gt5bothsex_index = mdfcounties_gt5bothsex
 
-hdfcounties_malemedage = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QSEX'] == '1')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(hdfcounties_gt5bothsex_index).reset_index()
-mdfcounties_malemedage = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QSEX'] == '1')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(mdfcounties_gt5bothsex_index).reset_index()
-hdfcounties_femalemedage = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QSEX'] == '2')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(hdfcounties_gt5bothsex_index).reset_index()
-mdfcounties_femalemedage = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QSEX'] == '2')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(mdfcounties_gt5bothsex_index).reset_index()
+hdfcounties_malemedage = dfhdf().filter((pl.col('CENHISP') == '2'), (pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_MaleAge')).collect().join(pl.DataFrame({'GEOID': hdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdfcounties_malemedage = dfmdf().filter((pl.col('CENHISP') == '2'), (pl.col('QSEX') == '1')).group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_MaleAge')).collect().join(pl.DataFrame({'GEOID': mdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+hdfcounties_femalemedage = dfhdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_FemaleAge')).collect().join(pl.DataFrame({'GEOID': hdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdfcounties_femalemedage = dfmdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_FemaleAge')).collect().join(pl.DataFrame({'GEOID': mdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
 
-hdfcounties =  pd.merge(hdfcounties_malemedage, hdfcounties_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
-mdfcounties =  pd.merge(mdfcounties_malemedage, mdfcounties_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
+hdfcounties =  hdfcounties_malemedage.join(hdfcounties_femalemedage, on='GEOID', how="inner", coalesce=True)
+mdfcounties =  mdfcounties_malemedage.join(mdfcounties_femalemedage, on='GEOID', how="inner", coalesce=True)
 
-hdfcounties['BigAgeDiff'] = np.where(np.abs(hdfcounties['HDF_MaleAge'] - hdfcounties['HDF_FemaleAge']) >= 20, 1, 0)
-mdfcounties['BigAgeDiff'] = np.where(np.abs(mdfcounties['MDF_MaleAge'] - mdfcounties['MDF_FemaleAge']) >= 20, 1, 0)
+hdfcounties = hdfcounties.with_columns(pl.when((pl.col('HDF_MaleAge').abs() - pl.col('HDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
+mdfcounties = mdfcounties.with_columns(pl.when((pl.col('MDF_MaleAge').abs() - pl.col('MDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
 
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"HDF 20+ Year Median Age Diff Hispanic",'NumCells':len(hdfcounties), 'Inconsistent':np.sum(hdfcounties['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"HDF 20+ Year Median Age Diff Hispanic",'NumCells':len(hdfcounties), 'Inconsistent':hdfcounties['BigAgeDiff'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"MDF 20+ Year Median Age Diff Hispanic",'NumCells':len(mdfcounties), 'Inconsistent':np.sum(mdfcounties['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"MDF 20+ Year Median Age Diff Hispanic",'NumCells':len(mdfcounties), 'Inconsistent':mdfcounties['BigAgeDiff'].sum()})
 outputdflist.append(ss)
 
 # Counties where median age of the men is significantly different (equal to or greater than 20 years) from the median age of women, Non-Hispanic White
-hdfcounties_males = dfhdf[(dfhdf['RACEALONE'] == 1)&(dfhdf['CENHISP'] == '1')&(dfhdf['QSEX'] == '1')].group_by('CountyGEOID').size().reset_index(name='HDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_males = dfmdf[(dfmdf['RACEALONE'] == 1)&(dfmdf['CENHISP'] == '1')&(dfmdf['QSEX'] == '1')].group_by('CountyGEOID').size().reset_index(name='MDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-hdfcounties_females = dfhdf[(dfhdf['RACEALONE'] == 1)&(dfhdf['CENHISP'] == '1')&(dfhdf['QSEX'] == '2')].group_by('CountyGEOID').size().reset_index(name='HDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
-mdfcounties_females = dfmdf[(dfmdf['RACEALONE'] == 1)&(dfmdf['CENHISP'] == '1')&(dfmdf['QSEX'] == '2')].group_by('CountyGEOID').size().reset_index(name='MDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU'])
+hdfcounties_males = dfhdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.len().alias('HDF_Males'))
+mdfcounties_males = dfmdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.len().alias('MDF_Males'))
+hdfcounties_females = dfhdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.len().alias('HDF_Females'))
+mdfcounties_females = dfmdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.len().alias('MDF_Females'))
 
-hdfcounties_gt5males = hdfcounties_males.loc[hdfcounties_males['HDF_Males'] >=5, 'GEOID'].tolist()
-mdfcounties_gt5males = mdfcounties_males.loc[mdfcounties_males['MDF_Males'] >=5, 'GEOID'].tolist()
-hdfcounties_gt5females = hdfcounties_females.loc[hdfcounties_females['HDF_Females'] >=5, 'GEOID'].tolist()
-mdfcounties_gt5females = mdfcounties_females.loc[mdfcounties_females['MDF_Females'] >=5, 'GEOID'].tolist()
+hdfcounties_gt5males = hdfcounties_males.filter(pl.col('HDF_Males') >= 5).get_column('GEOID').to_list()
+mdfcounties_gt5males = mdfcounties_males.filter(pl.col('MDF_Males') >= 5).get_column('GEOID').to_list()
+hdfcounties_gt5females = hdfcounties_females.filter(pl.col('HDF_Females') >= 5).get_column('GEOID').to_list()
+mdfcounties_gt5females = mdfcounties_females.filter(pl.col('MDF_Females') >= 5).get_column('GEOID').to_list()
 
 hdfcounties_gt5bothsex =  list(set(hdfcounties_gt5males).intersection(hdfcounties_gt5females))
 mdfcounties_gt5bothsex =  list(set(mdfcounties_gt5males).intersection(mdfcounties_gt5females))
 
-hdfcounties_gt5bothsex_index = pd.Index(hdfcounties_gt5bothsex, name='GEOID')
-mdfcounties_gt5bothsex_index = pd.Index(mdfcounties_gt5bothsex, name='GEOID')
+hdfcounties_gt5bothsex_index = hdfcounties_gt5bothsex
+mdfcounties_gt5bothsex_index = mdfcounties_gt5bothsex
 
-hdfcounties_malemedage = dfhdf[(dfhdf['RACEALONE'] == 1)&(dfhdf['CENHISP'] == '1')&(dfhdf['QSEX'] == '1')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(hdfcounties_gt5bothsex_index).reset_index()
-mdfcounties_malemedage = dfmdf[(dfmdf['RACEALONE'] == 1)&(dfmdf['CENHISP'] == '1')&(dfmdf['QSEX'] == '1')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(mdfcounties_gt5bothsex_index).reset_index()
-hdfcounties_femalemedage = dfhdf[(dfhdf['RACEALONE'] == 1)&(dfhdf['CENHISP'] == '1')&(dfhdf['QSEX'] == '2')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(hdfcounties_gt5bothsex_index).reset_index()
-mdfcounties_femalemedage = dfmdf[(dfmdf['RACEALONE'] == 1)&(dfmdf['CENHISP'] == '1')&(dfmdf['QSEX'] == '2')].group_by('CountyGEOID')['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU).drop(columns = ['TABBLKST', 'TABBLKCOU']).set_index('GEOID').reindex(mdfcounties_gt5bothsex_index).reset_index()
+hdfcounties_malemedage = dfhdf().filter((pl.col('RACEALONE') == 1), (pl.col('CENHISP') == '1'), (pl.col('QSEX') == '1')).group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_MaleAge')).collect().join(pl.DataFrame({'GEOID': hdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdfcounties_malemedage = dfmdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '1').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_MaleAge')).collect().join(pl.DataFrame({'GEOID': mdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+hdfcounties_femalemedage = dfhdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_FemaleAge')).collect().join(pl.DataFrame({'GEOID': hdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdfcounties_femalemedage = dfmdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '2').group_by('CountyGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_FemaleAge')).collect().join(pl.DataFrame({'GEOID': mdfcounties_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
 
-hdfcounties =  pd.merge(hdfcounties_malemedage, hdfcounties_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
-mdfcounties =  pd.merge(mdfcounties_malemedage, mdfcounties_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
+hdfcounties =  hdfcounties_malemedage.join(hdfcounties_femalemedage, on='GEOID', how="inner", coalesce=True)
+mdfcounties =  mdfcounties_malemedage.join(mdfcounties_femalemedage, on='GEOID', how="inner", coalesce=True)
 
-hdfcounties['BigAgeDiff'] = np.where(np.abs(hdfcounties['HDF_MaleAge'] - hdfcounties['HDF_FemaleAge']) >= 20, 1, 0)
-mdfcounties['BigAgeDiff'] = np.where(np.abs(mdfcounties['MDF_MaleAge'] - mdfcounties['MDF_FemaleAge']) >= 20, 1, 0)
+hdfcounties = hdfcounties.with_columns(pl.when((pl.col('HDF_MaleAge').abs() - pl.col('HDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
+mdfcounties = mdfcounties.with_columns(pl.when((pl.col('MDF_MaleAge').abs() - pl.col('MDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
 
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"HDF 20+ Year Median Age Diff Non-Hispanic White",'NumCells':len(hdfcounties), 'Inconsistent':np.sum(hdfcounties['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"HDF 20+ Year Median Age Diff Non-Hispanic White",'NumCells':len(hdfcounties), 'Inconsistent':hdfcounties['BigAgeDiff'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"MDF 20+ Year Median Age Diff Non-Hispanic White",'NumCells':len(mdfcounties), 'Inconsistent':np.sum(mdfcounties['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'County', 'Size_Category':'All', 'Characteristic':"MDF 20+ Year Median Age Diff Non-Hispanic White",'NumCells':len(mdfcounties), 'Inconsistent':mdfcounties['BigAgeDiff'].sum()})
 outputdflist.append(ss)
 
 # Tracts where median age of the men is significantly different (equal to or greater than 20 years) from the median age of women
-hdftracts_males = dfhdf[(dfhdf['QSEX'] == '1')].group_by(['TractGEOID']).size().reset_index(name='HDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-mdftracts_males = dfmdf[(dfmdf['QSEX'] == '1')].group_by(['TractGEOID']).size().reset_index(name='MDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-hdftracts_females = dfhdf[(dfhdf['QSEX'] == '2')].group_by(['TractGEOID']).size().reset_index(name='HDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-mdftracts_females = dfmdf[(dfmdf['QSEX'] == '2')].group_by(['TractGEOID']).size().reset_index(name='MDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
+hdftracts_males = dfhdf().filter(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.len().alias('HDF_Males'))
+mdftracts_males = dfmdf().filter(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.len().alias('MDF_Males'))
+hdftracts_females = dfhdf().filter(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.len().alias('HDF_Females'))
+mdftracts_females = dfmdf().filter(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.len().alias('MDF_Females'))
 
-hdftracts_gt5males = hdftracts_males.loc[hdftracts_males['HDF_Males'] >=5, 'GEOID'].tolist()
-mdftracts_gt5males = mdftracts_males.loc[mdftracts_males['MDF_Males'] >=5, 'GEOID'].tolist()
-hdftracts_gt5females = hdftracts_females.loc[hdftracts_females['HDF_Females'] >=5, 'GEOID'].tolist()
-mdftracts_gt5females = mdftracts_females.loc[mdftracts_females['MDF_Females'] >=5, 'GEOID'].tolist()
+hdftracts_gt5males = hdftracts_males.filter(pl.col('HDF_Males') >= 5).get_column('GEOID').to_list()
+mdftracts_gt5males = mdftracts_males.filter(pl.col('MDF_Males') >= 5).get_column('GEOID').to_list()
+hdftracts_gt5females = hdftracts_females.filter(pl.col('HDF_Females') >= 5).get_column('GEOID').to_list()
+mdftracts_gt5females = mdftracts_females.filter(pl.col('MDF_Females') >= 5).get_column('GEOID').to_list()
 
 hdftracts_gt5bothsex =  list(set(hdftracts_gt5males).intersection(hdftracts_gt5females))
 mdftracts_gt5bothsex =  list(set(mdftracts_gt5males).intersection(mdftracts_gt5females))
 
-hdftracts_gt5bothsex_index = pd.Index(hdftracts_gt5bothsex, name='GEOID')
-mdftracts_gt5bothsex_index = pd.Index(mdftracts_gt5bothsex, name='GEOID')
+hdftracts_gt5bothsex_index = hdftracts_gt5bothsex
+mdftracts_gt5bothsex_index = mdftracts_gt5bothsex
 
-hdftracts_malemedage = dfhdf[(dfhdf['QSEX'] == '1')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(hdftracts_gt5bothsex_index).reset_index()
-mdftracts_malemedage = dfmdf[(dfmdf['QSEX'] == '1')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(mdftracts_gt5bothsex_index).reset_index()
-hdftracts_femalemedage = dfhdf[(dfhdf['QSEX'] == '2')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(hdftracts_gt5bothsex_index).reset_index()
-mdftracts_femalemedage = dfmdf[(dfmdf['QSEX'] == '2')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(mdftracts_gt5bothsex_index).reset_index()
+hdftracts_malemedage = dfhdf().filter(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_MaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': hdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdftracts_malemedage = dfmdf().filter(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_MaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': mdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+hdftracts_femalemedage = dfhdf().filter(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_FemaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': hdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdftracts_femalemedage = dfmdf().filter(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_FemaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': mdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
 
-hdftracts =  pd.merge(hdftracts_malemedage, hdftracts_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
-mdftracts =  pd.merge(mdftracts_malemedage, mdftracts_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
+hdftracts =  hdftracts_malemedage.join(hdftracts_femalemedage, on='GEOID', how="inner", coalesce=True)
+mdftracts =  mdftracts_malemedage.join(mdftracts_femalemedage, on='GEOID', how="inner", coalesce=True)
 
-hdftracts['BigAgeDiff'] = np.where(np.abs(hdftracts['HDF_MaleAge'] - hdftracts['HDF_FemaleAge']) >= 20, 1, 0)
-mdftracts['BigAgeDiff'] = np.where(np.abs(mdftracts['MDF_MaleAge'] - mdftracts['MDF_FemaleAge']) >= 20, 1, 0)
+hdftracts = hdftracts.with_columns(pl.when((pl.col('HDF_MaleAge').abs() - pl.col('HDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
+mdftracts = mdftracts.with_columns(pl.when((pl.col('MDF_MaleAge').abs() - pl.col('MDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
 
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF 20+ Year Median Age Diff','NumCells':len(hdftracts), 'Inconsistent':np.sum(hdftracts['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF 20+ Year Median Age Diff','NumCells':len(hdftracts), 'Inconsistent':hdftracts['BigAgeDiff'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF 20+ Year Median Age Diff','NumCells':len(mdftracts), 'Inconsistent':np.sum(mdftracts['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF 20+ Year Median Age Diff','NumCells':len(mdftracts), 'Inconsistent':mdftracts['BigAgeDiff'].sum()})
 outputdflist.append(ss)
 
 # Tracts where median age of the men is significantly different (equal to or greater than 20 years) from the median age of women by major race group
 for r in racealonecats:
-    hdftracts_males = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QSEX'] == '1')].group_by(['TractGEOID']).size().reset_index(name='HDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-    mdftracts_males = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QSEX'] == '1')].group_by(['TractGEOID']).size().reset_index(name='MDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-    hdftracts_females = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QSEX'] == '2')].group_by(['TractGEOID']).size().reset_index(name='HDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-    mdftracts_females = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QSEX'] == '2')].group_by(['TractGEOID']).size().reset_index(name='MDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
+    hdftracts_males = dfhdf().filter((pl.col('RACEALONE') == r), (pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.len().alias('HDF_Males'))
+    mdftracts_males = dfmdf().filter((pl.col('RACEALONE') == r), (pl.col('QSEX') == '1')).group_by('TractGEOID').agg(pl.len().alias('MDF_Males'))
+    hdftracts_females = dfhdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.len().alias('HDF_Females'))
+    mdftracts_females = dfmdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.len().alias('MDF_Females'))
 
-    hdftracts_gt5males = hdftracts_males.loc[hdftracts_males['HDF_Males'] >=5, 'GEOID'].tolist()
-    mdftracts_gt5males = mdftracts_males.loc[mdftracts_males['MDF_Males'] >=5, 'GEOID'].tolist()
-    hdftracts_gt5females = hdftracts_females.loc[hdftracts_females['HDF_Females'] >=5, 'GEOID'].tolist()
-    mdftracts_gt5females = mdftracts_females.loc[mdftracts_females['MDF_Females'] >=5, 'GEOID'].tolist()
+    hdftracts_gt5males = hdftracts_males.filter(pl.col('HDF_Males') >= 5).get_column('GEOID').to_list()
+    mdftracts_gt5males = mdftracts_males.filter(pl.col('MDF_Males') >= 5).get_column('GEOID').to_list()
+    hdftracts_gt5females = hdftracts_females.filter(pl.col('HDF_Females') >= 5).get_column('GEOID').to_list()
+    mdftracts_gt5females = mdftracts_females.filter(pl.col('MDF_Females') >= 5).get_column('GEOID').to_list()
 
     hdftracts_gt5bothsex =  list(set(hdftracts_gt5males).intersection(hdftracts_gt5females))
     mdftracts_gt5bothsex =  list(set(mdftracts_gt5males).intersection(mdftracts_gt5females))
 
-    hdftracts_gt5bothsex_index = pd.Index(hdftracts_gt5bothsex, name='GEOID')
-    mdftracts_gt5bothsex_index = pd.Index(mdftracts_gt5bothsex, name='GEOID')
+    hdftracts_gt5bothsex_index = hdftracts_gt5bothsex
+    mdftracts_gt5bothsex_index = mdftracts_gt5bothsex
 
-    hdftracts_malemedage = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QSEX'] == '1')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(hdftracts_gt5bothsex_index).reset_index()
-    mdftracts_malemedage = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QSEX'] == '1')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(mdftracts_gt5bothsex_index).reset_index()
-    hdftracts_femalemedage = dfhdf[(dfhdf['RACEALONE'] == r)&(dfhdf['QSEX'] == '2')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(hdftracts_gt5bothsex_index).reset_index()
-    mdftracts_femalemedage = dfmdf[(dfmdf['RACEALONE'] == r)&(dfmdf['QSEX'] == '2')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(mdftracts_gt5bothsex_index).reset_index()
+    hdftracts_malemedage = dfhdf().filter((pl.col('RACEALONE') == r), (pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_MaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': hdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+    mdftracts_malemedage = dfmdf().filter((pl.col('RACEALONE') == r), (pl.col('QSEX') == '1')).group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_MaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': mdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+    hdftracts_femalemedage = dfhdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_FemaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': hdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+    mdftracts_femalemedage = dfmdf().filter((pl.col('RACEALONE') == r)&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_FemaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': mdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
 
-    hdftracts =  pd.merge(hdftracts_malemedage, hdftracts_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
-    mdftracts =  pd.merge(mdftracts_malemedage, mdftracts_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
+    hdftracts =  hdftracts_malemedage.join(hdftracts_femalemedage, on='GEOID', how="inner", coalesce=True)
+    mdftracts =  mdftracts_malemedage.join(mdftracts_femalemedage, on='GEOID', how="inner", coalesce=True)
 
-    hdftracts['BigAgeDiff'] = np.where(np.abs(hdftracts['HDF_MaleAge'] - hdftracts['HDF_FemaleAge']) >= 20, 1, 0)
-    mdftracts['BigAgeDiff'] = np.where(np.abs(mdftracts['MDF_MaleAge'] - mdftracts['MDF_FemaleAge']) >= 20, 1, 0)
+    hdftracts = hdftracts.with_columns(pl.when((pl.col('HDF_MaleAge').abs() - pl.col('HDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
+    mdftracts = mdftracts.with_columns(pl.when((pl.col('MDF_MaleAge').abs() - pl.col('MDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
 
-    ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':"HDF 20+ Year Median Age Diff {race}".format(race = racealonedict.get(r)),'NumCells':len(hdftracts), 'Inconsistent':np.sum(hdftracts['BigAgeDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':"HDF 20+ Year Median Age Diff {race}".format(race = racealonedict.get(r)),'NumCells':len(hdftracts), 'Inconsistent':hdftracts['BigAgeDiff'].sum()})
     outputdflist.append(ss)
-    ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':"MDF 20+ Year Median Age Diff {race}".format(race = racealonedict.get(r)),'NumCells':len(mdftracts), 'Inconsistent':np.sum(mdftracts['BigAgeDiff'])}, index=[0])
+    ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':"MDF 20+ Year Median Age Diff {race}".format(race = racealonedict.get(r)),'NumCells':len(mdftracts), 'Inconsistent':mdftracts['BigAgeDiff'].sum()})
     outputdflist.append(ss)
 
 
 # Tracts where median age of the men is significantly different (equal to or greater than 20 years) from the median age of women Hispanic
-hdftracts_males = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QSEX'] == '1')].group_by(['TractGEOID']).size().reset_index(name='HDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-mdftracts_males = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QSEX'] == '1')].group_by(['TractGEOID']).size().reset_index(name='MDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-hdftracts_females = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QSEX'] == '2')].group_by(['TractGEOID']).size().reset_index(name='HDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-mdftracts_females = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QSEX'] == '2')].group_by(['TractGEOID']).size().reset_index(name='MDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
+hdftracts_males = dfhdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.len().alias('HDF_Males'))
+mdftracts_males = dfmdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.len().alias('MDF_Males'))
+hdftracts_females = dfhdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.len().alias('HDF_Females'))
+mdftracts_females = dfmdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.len().alias('MDF_Females'))
 
-hdftracts_gt5males = hdftracts_males.loc[hdftracts_males['HDF_Males'] >=5, 'GEOID'].tolist()
-mdftracts_gt5males = mdftracts_males.loc[mdftracts_males['MDF_Males'] >=5, 'GEOID'].tolist()
-hdftracts_gt5females = hdftracts_females.loc[hdftracts_females['HDF_Females'] >=5, 'GEOID'].tolist()
-mdftracts_gt5females = mdftracts_females.loc[mdftracts_females['MDF_Females'] >=5, 'GEOID'].tolist()
+hdftracts_gt5males = hdftracts_males.filter(pl.col('HDF_Males') >= 5).get_column('GEOID').to_list()
+mdftracts_gt5males = mdftracts_males.filter(pl.col('MDF_Males') >= 5).get_column('GEOID').to_list()
+hdftracts_gt5females = hdftracts_females.filter(pl.col('HDF_Females') >= 5).get_column('GEOID').to_list()
+mdftracts_gt5females = mdftracts_females.filter(pl.col('MDF_Females') >= 5).get_column('GEOID').to_list()
 
 hdftracts_gt5bothsex =  list(set(hdftracts_gt5males).intersection(hdftracts_gt5females))
 mdftracts_gt5bothsex =  list(set(mdftracts_gt5males).intersection(mdftracts_gt5females))
 
-hdftracts_gt5bothsex_index = pd.Index(hdftracts_gt5bothsex, name='GEOID')
-mdftracts_gt5bothsex_index = pd.Index(mdftracts_gt5bothsex, name='GEOID')
+hdftracts_gt5bothsex_index = hdftracts_gt5bothsex
+mdftracts_gt5bothsex_index = mdftracts_gt5bothsex
 
-hdftracts_malemedage = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QSEX'] == '1')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(hdftracts_gt5bothsex_index).reset_index()
-mdftracts_malemedage = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QSEX'] == '1')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(mdftracts_gt5bothsex_index).reset_index()
-hdftracts_femalemedage = dfhdf[(dfhdf['CENHISP'] == '2')&(dfhdf['QSEX'] == '2')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(hdftracts_gt5bothsex_index).reset_index()
-mdftracts_femalemedage = dfmdf[(dfmdf['CENHISP'] == '2')&(dfmdf['QSEX'] == '2')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(mdftracts_gt5bothsex_index).reset_index()
+hdftracts_malemedage = dfhdf().filter((pl.col('CENHISP') == '2'), (pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_MaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': hdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdftracts_malemedage = dfmdf().filter((pl.col('CENHISP') == '2'), (pl.col('QSEX') == '1')).group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_MaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': mdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+hdftracts_femalemedage = dfhdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_FemaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': hdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdftracts_femalemedage = dfmdf().filter((pl.col('CENHISP') == '2')&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_FemaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': mdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
 
-hdftracts =  pd.merge(hdftracts_malemedage, hdftracts_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
-mdftracts =  pd.merge(mdftracts_malemedage, mdftracts_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
+hdftracts =  hdftracts_malemedage.join(hdftracts_femalemedage, on='GEOID', how="inner", coalesce=True)
+mdftracts =  mdftracts_malemedage.join(mdftracts_femalemedage, on='GEOID', how="inner", coalesce=True)
 
-hdftracts['BigAgeDiff'] = np.where(np.abs(hdftracts['HDF_MaleAge'] - hdftracts['HDF_FemaleAge']) >= 20, 1, 0)
-mdftracts['BigAgeDiff'] = np.where(np.abs(mdftracts['MDF_MaleAge'] - mdftracts['MDF_FemaleAge']) >= 20, 1, 0)
+hdftracts = hdftracts.with_columns(pl.when((pl.col('HDF_MaleAge').abs() - pl.col('HDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
+mdftracts = mdftracts.with_columns(pl.when((pl.col('MDF_MaleAge').abs() - pl.col('MDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
 
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF 20+ Year Median Age Diff Hispanic','NumCells':len(hdftracts), 'Inconsistent':np.sum(hdftracts['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF 20+ Year Median Age Diff Hispanic','NumCells':len(hdftracts), 'Inconsistent':hdftracts['BigAgeDiff'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF 20+ Year Median Age Diff Hispanic','NumCells':len(mdftracts), 'Inconsistent':np.sum(mdftracts['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF 20+ Year Median Age Diff Hispanic','NumCells':len(mdftracts), 'Inconsistent':mdftracts['BigAgeDiff'].sum()})
 outputdflist.append(ss)
 
 # Tracts where median age of the men is significantly different (equal to or greater than 20 years) from the median age of women Non-Hispanic White
-hdftracts_males = dfhdf[(dfhdf['RACEALONE'] == 1)&(dfhdf['CENHISP'] == '1')&(dfhdf['QSEX'] == '1')].group_by(['TractGEOID']).size().reset_index(name='HDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-mdftracts_males = dfmdf[(dfmdf['RACEALONE'] == 1)&(dfmdf['CENHISP'] == '1')&(dfmdf['QSEX'] == '1')].group_by(['TractGEOID']).size().reset_index(name='MDF_Males').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-hdftracts_females = dfhdf[(dfhdf['RACEALONE'] == 1)&(dfhdf['CENHISP'] == '1')&(dfhdf['QSEX'] == '2')].group_by(['TractGEOID']).size().reset_index(name='HDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
-mdftracts_females = dfmdf[(dfmdf['RACEALONE'] == 1)&(dfmdf['CENHISP'] == '1')&(dfmdf['QSEX'] == '2')].group_by(['TractGEOID']).size().reset_index(name='MDF_Females').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TABBLKST', 'TABBLKCOU','TABTRACTCE'])
+hdftracts_males = dfhdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.len().alias('HDF_Males'))
+mdftracts_males = dfmdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.len().alias('MDF_Males'))
+hdftracts_females = dfhdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.len().alias('HDF_Females'))
+mdftracts_females = dfmdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.len().alias('MDF_Females'))
 
-hdftracts_gt5males = hdftracts_males.loc[hdftracts_males['HDF_Males'] >=5, 'GEOID'].tolist()
-mdftracts_gt5males = mdftracts_males.loc[mdftracts_males['MDF_Males'] >=5, 'GEOID'].tolist()
-hdftracts_gt5females = hdftracts_females.loc[hdftracts_females['HDF_Females'] >=5, 'GEOID'].tolist()
-mdftracts_gt5females = mdftracts_females.loc[mdftracts_females['MDF_Females'] >=5, 'GEOID'].tolist()
+hdftracts_gt5males = hdftracts_males.filter(pl.col('HDF_Males') >= 5).get_column('GEOID').to_list()
+mdftracts_gt5males = mdftracts_males.filter(pl.col('MDF_Males') >= 5).get_column('GEOID').to_list()
+hdftracts_gt5females = hdftracts_females.filter(pl.col('HDF_Females') >= 5).get_column('GEOID').to_list()
+mdftracts_gt5females = mdftracts_females.filter(pl.col('MDF_Females') >= 5).get_column('GEOID').to_list()
 
 hdftracts_gt5bothsex =  list(set(hdftracts_gt5males).intersection(hdftracts_gt5females))
 mdftracts_gt5bothsex =  list(set(mdftracts_gt5males).intersection(mdftracts_gt5females))
 
-hdftracts_gt5bothsex_index = pd.Index(hdftracts_gt5bothsex, name='GEOID')
-mdftracts_gt5bothsex_index = pd.Index(mdftracts_gt5bothsex, name='GEOID')
+hdftracts_gt5bothsex_index = hdftracts_gt5bothsex
+mdftracts_gt5bothsex_index = mdftracts_gt5bothsex
 
-hdftracts_malemedage = dfhdf[(dfhdf['RACEALONE'] == 1)&(dfhdf['CENHISP'] == '1')&(dfhdf['QSEX'] == '1')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(hdftracts_gt5bothsex_index).reset_index()
-mdftracts_malemedage = dfmdf[(dfmdf['RACEALONE'] == 1)&(dfmdf['CENHISP'] == '1')&(dfmdf['QSEX'] == '1')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_MaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(mdftracts_gt5bothsex_index).reset_index()
-hdftracts_femalemedage = dfhdf[(dfhdf['RACEALONE'] == 1)&(dfhdf['CENHISP'] == '1')&(dfhdf['QSEX'] == '2')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='HDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(hdftracts_gt5bothsex_index).reset_index()
-mdftracts_femalemedage = dfmdf[(dfmdf['RACEALONE'] == 1)&(dfmdf['CENHISP'] == '1')&(dfmdf['QSEX'] == '2')].group_by(['TractGEOID'])['QAGE'].aggregate(lambda x: median_grouped(x+0.5)).reset_index(name='MDF_FemaleAge').assign(GEOID = lambda x: x.TABBLKST + x.TABBLKCOU + x.TABTRACTCE).drop(columns = ['TractGEOID']).set_index('GEOID').reindex(mdftracts_gt5bothsex_index).reset_index()
+hdftracts_malemedage = dfhdf().filter((pl.col('RACEALONE') == 1), (pl.col('CENHISP') == '1'), (pl.col('QSEX') == '1')).group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_MaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': hdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdftracts_malemedage = dfmdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '1').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_MaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': mdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+hdftracts_femalemedage = dfhdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('HDF_FemaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': hdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
+mdftracts_femalemedage = dfmdf().filter((pl.col('RACEALONE') == 1)&(pl.col('CENHISP') == '1')&(pl.col('QSEX') == '2').group_by('TractGEOID').agg(pl.col('QAGE').map_elements(lambda x: median_grouped(x + 0.5), return_dtype=pl.Float64).alias('MDF_FemaleAge')).rename({'TractGEOID': 'GEOID'}).join(pl.DataFrame({'GEOID': mdftracts_gt5bothsex_index}), on='GEOID', how='right', coalesce=True)
 
-hdftracts =  pd.merge(hdftracts_malemedage, hdftracts_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
-mdftracts =  pd.merge(mdftracts_malemedage, mdftracts_femalemedage, on='GEOID', how = 'inner', validate = mergeValidation)
+hdftracts =  hdftracts_malemedage.join(hdftracts_femalemedage, on='GEOID', how="inner", coalesce=True)
+mdftracts =  mdftracts_malemedage.join(mdftracts_femalemedage, on='GEOID', how="inner", coalesce=True)
 
-hdftracts['BigAgeDiff'] = np.where(np.abs(hdftracts['HDF_MaleAge'] - hdftracts['HDF_FemaleAge']) >= 20, 1, 0)
-mdftracts['BigAgeDiff'] = np.where(np.abs(mdftracts['MDF_MaleAge'] - mdftracts['MDF_FemaleAge']) >= 20, 1, 0)
+hdftracts = hdftracts.with_columns(pl.when((pl.col('HDF_MaleAge').abs() - pl.col('HDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
+mdftracts = mdftracts.with_columns(pl.when((pl.col('MDF_MaleAge').abs() - pl.col('MDF_FemaleAge')) >= 20).then(1).otherwise(0).alias('BigAgeDiff'))
 
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF 20+ Year Median Age Diff Non-Hispanic White','NumCells':len(hdftracts), 'Inconsistent':np.sum(hdftracts['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'HDF 20+ Year Median Age Diff Non-Hispanic White','NumCells':len(hdftracts), 'Inconsistent':hdftracts['BigAgeDiff'].sum()})
 outputdflist.append(ss)
-ss = pd.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF 20+ Year Median Age Diff Non-Hispanic White','NumCells':len(mdftracts), 'Inconsistent':np.sum(mdftracts['BigAgeDiff'])}, index=[0])
+ss = pl.DataFrame({'Geography':'Tract', 'Size_Category':'All', 'Characteristic':'MDF 20+ Year Median Age Diff Non-Hispanic White','NumCells':len(mdftracts), 'Inconsistent':mdftracts['BigAgeDiff'].sum()})
 outputdflist.append(ss)
 
 # Output
-outputdf = pd.concat(outputdflist, ignore_index=True)
-outputdf.to_csv(f"{OUTPUTDIR}/cef_per_metrics_v2.csv", index=False)
+outputdf = pl.concat(outputdflist, how='diagonal_relaxed')
+outputdf.write_csv(f"{OUTPUTDIR}/cef_per_metrics_v2.csv")
 print("{} All Done".format(datetime.now()))
